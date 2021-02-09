@@ -5,12 +5,14 @@ import (
 	"os/signal"
 	"sync"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/vulcanize/ipld-eth-indexer/pkg/eth"
-	"github.com/vulcanize/ipld-eth-server/pkg/serve"
+	srpc "github.com/vulcanize/ipld-eth-server/pkg/rpc"
+	srv "github.com/vulcanize/ipld-eth-server/pkg/serve"
+	"github.com/vulcanize/tracing-api/pkg/serve"
 )
 
 var (
@@ -21,11 +23,10 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logrus.WithField("command", cmd.CalledAs()).Infof("running tracing-api version: %s", version)
 
-			serverConfig, err := serve.NewConfig()
+			serverConfig, err := srv.NewConfig()
 			if err != nil {
 				return err
 			}
-			spew.Dump(serverConfig)
 
 			server, err := serve.NewServer(serverConfig)
 			if err != nil {
@@ -33,7 +34,7 @@ var (
 			}
 
 			wg := new(sync.WaitGroup)
-			forwardPayloadChan := make(chan eth.ConvertedPayload, serve.PayloadChanBufferSize)
+			forwardPayloadChan := make(chan eth.ConvertedPayload, srv.PayloadChanBufferSize)
 			server.Serve(wg, forwardPayloadChan)
 			if err := startServers(server, serverConfig); err != nil {
 				return err
@@ -51,8 +52,20 @@ var (
 	}
 )
 
-func startServers(server serve.Server, settings *serve.Config) error {
-	return nil
+func startServers(server srv.Server, settings *srv.Config) error {
+	logrus.Info("starting up IPC server")
+	_, _, err := srpc.StartIPCEndpoint(settings.IPCEndpoint, server.APIs())
+	if err != nil {
+		return err
+	}
+	logrus.Info("starting up WS server")
+	_, _, err = srpc.StartWSEndpoint(settings.WSEndpoint, server.APIs(), []string{"debug"}, nil, true)
+	if err != nil {
+		return err
+	}
+	logrus.Info("starting up HTTP server")
+	_, _, err = srpc.StartHTTPEndpoint(settings.HTTPEndpoint, server.APIs(), []string{"debug"}, nil, []string{"*"}, rpc.HTTPTimeouts{})
+	return err
 }
 
 func init() {

@@ -959,6 +959,7 @@ github.com/viant/assertly v0.4.8/go.mod h1:aGifi++jvCrUaklKEKT0BU95igDNaqkvz+49u
 github.com/viant/toolbox v0.24.0/go.mod h1:OxMCG57V0PXuIP2HNQrtJf2CjqdmbrOx5EkMILuUhzM=
 github.com/vulcanize/go-ethereum v1.9.11-statediff-0.0.8 h1:7TK52k55uvSl+1SCKYYFelzH1NrpvEcDrpeU9nUDIpI=
 github.com/vulcanize/go-ethereum v1.9.11-statediff-0.0.8/go.mod h1:7oC0Ni6dosMv5pxMigm6s0hN8g4haJMBnqmmo0D9YfQ=
+github.com/vulcanize/ipld-eth-indexer v0.0.9 h1:RZw9fiZD0LqVmJv7fQC9cXZN9hT2qhE58SJ3jPH2l44=
 github.com/vulcanize/ipld-eth-indexer v0.2.0-alpha h1:+XVaC7TsA0K278YWpfqdrNxwgC6hY6fBaN8w2/e1Lts=
 github.com/vulcanize/ipld-eth-indexer v0.2.0-alpha/go.mod h1:SuMBscFfcBHYlQuzDDd4by+R0S3gaAFjrOU+uQfAefE=
 github.com/vulcanize/ipld-eth-indexer v0.6.0-alpha h1:CNZfwHokF3tcYKCsWKoyRqmyDh1quw0v/e5Jf2dD7uc=
