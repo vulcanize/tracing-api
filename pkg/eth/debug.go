@@ -11,21 +11,29 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/vulcanize/ipld-eth-server/pkg/eth"
+	"github.com/vulcanize/tracing-api/pkg/cache"
 	"github.com/vulcanize/tracing-api/pkg/eth/tracer"
 )
 
 type DebugAPI struct {
 	// Local db backend
 	backend *eth.Backend
+	cache   *cache.Service
 }
 
-func NewDebugAPI(b *eth.Backend) *DebugAPI {
-	return &DebugAPI{
-		backend: b,
+func NewDebugAPI(b *eth.Backend, cache *cache.Service) *DebugAPI {
+	return &DebugAPI{b, cache}
+}
+
+func (api *DebugAPI) WriteTxTraceGraph(ctx context.Context, hash common.Hash) (*cache.TxTraceGraph, error) {
+	data, err := api.TxTraceGraph(ctx, hash)
+	if err != nil {
+		return nil, err
 	}
+	return data, api.cache.SaveTxTraceGraph(data)
 }
 
-func (api *DebugAPI) TxTraceGraph(ctx context.Context, hash common.Hash) (interface{}, error) {
+func (api *DebugAPI) TxTraceGraph(ctx context.Context, hash common.Hash) (*cache.TxTraceGraph, error) {
 	tx, _, blockNum, txIndex, err := api.backend.GetTransaction(ctx, hash)
 	if err != nil {
 		return nil, err
@@ -70,9 +78,11 @@ func (api *DebugAPI) TxTraceGraph(ctx context.Context, hash common.Hash) (interf
 		return nil, err
 	}
 
-	return map[string]interface{}{
-		"error":  tracer.Error(),
-		"output": tracer.Output(),
-		"framse": tracer.Frames(),
+	return &cache.TxTraceGraph{
+		TxHash:      hash,
+		TxIndex:     txIndex,
+		BlockHash:   block.Hash(),
+		BlockNumber: blockNum,
+		Frames:      tracer.Frames(),
 	}, nil
 }

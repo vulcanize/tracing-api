@@ -14,6 +14,26 @@ ifneq ($(shell git status --porcelain),)
 endif
 LDFLAGS := -ldflags "-X 'github.com/vulcanize/tracing-api/cmd.version=$(VERSION)'"
 
+#Database
+HOST_NAME = localhost
+PORT = 5432
+NAME = tracing_api
+USER = postgres
+CONNECT_STRING=postgresql://$(USER)@$(HOST_NAME):$(PORT)/$(NAME)?sslmode=disable
+
+BIN = $(GOPATH)/bin
+
+## Migration tool
+GOOSE = $(BIN)/goose
+$(BIN)/goose:
+	go get -u -d github.com/pressly/goose/cmd/goose
+	go build -tags='no_mysql no_sqlite' -o $(BIN)/goose github.com/pressly/goose/cmd/goose
+
+## Apply all migrations not already run
+migrate: $(GOOSE)
+	$(GOOSE) -dir db/migrations postgres "$(CONNECT_STRING)" up
+	pg_dump -O -s $(CONNECT_STRING) > db/schema.sql
+
 all: clean test linux darwin windows
 
 clean:

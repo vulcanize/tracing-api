@@ -12,6 +12,7 @@ import (
 	"github.com/vulcanize/ipld-eth-indexer/pkg/eth"
 	srpc "github.com/vulcanize/ipld-eth-server/pkg/rpc"
 	srv "github.com/vulcanize/ipld-eth-server/pkg/serve"
+	"github.com/vulcanize/tracing-api/pkg/cache"
 	"github.com/vulcanize/tracing-api/pkg/serve"
 )
 
@@ -28,7 +29,12 @@ var (
 				return err
 			}
 
-			server, err := serve.NewServer(serverConfig)
+			cache, err := cache.New()
+			if err != nil {
+				return err
+			}
+
+			server, err := serve.NewServer(serverConfig, cache)
 			if err != nil {
 				return err
 			}
@@ -85,6 +91,15 @@ func init() {
 	serveCmd.PersistentFlags().String("eth-default-sender", "", "default sender address")
 	serveCmd.PersistentFlags().String("eth-rpc-gas-cap", "", "rpc gas cap (for eth_Call execution)")
 
+	serveCmd.PersistentFlags().String("cache-database-name", "vulcanize_public", "database name")
+	serveCmd.PersistentFlags().String("cache-database-hostname", "localhost", "database hostname")
+	serveCmd.PersistentFlags().Int("cache-database-port", 5432, "database port")
+	serveCmd.PersistentFlags().String("cache-database-user", "postgres", "database user")
+	serveCmd.PersistentFlags().String("cache-database-password", "", "database password")
+	serveCmd.PersistentFlags().Int("cache-database-maxIdle", 0, "database password")
+	serveCmd.PersistentFlags().Int("cache-database-maxOpen", 0, "database password")
+	serveCmd.PersistentFlags().Int("cache-database-maxLifetime", 0, "database password")
+
 	// and their .toml config bindings
 	viper.BindPFlag("http.host", serveCmd.PersistentFlags().Lookup("http-host"))
 	viper.BindPFlag("http.port", serveCmd.PersistentFlags().Lookup("http-port"))
@@ -100,4 +115,13 @@ func init() {
 	viper.BindPFlag("ethereum.chainID", serveCmd.PersistentFlags().Lookup("eth-chain-id"))
 	viper.BindPFlag("ethereum.defaultSender", serveCmd.PersistentFlags().Lookup("eth-default-sender"))
 	viper.BindPFlag("ethereum.rpcGasCap", serveCmd.PersistentFlags().Lookup("eth-rpc-gas-cap"))
+
+	viper.BindPFlag("cache.database.name", serveCmd.PersistentFlags().Lookup("cache-database-name"))
+	viper.BindPFlag("cache.database.hostname", serveCmd.PersistentFlags().Lookup("cache-database-hostname"))
+	viper.BindPFlag("cache.database.port", serveCmd.PersistentFlags().Lookup("cache-database-port"))
+	viper.BindPFlag("cache.database.user", serveCmd.PersistentFlags().Lookup("cache-database-user"))
+	viper.BindPFlag("cache.database.password", serveCmd.PersistentFlags().Lookup("cache-database-password"))
+	viper.BindPFlag("cache.database.maxIdle", serveCmd.PersistentFlags().Lookup("cache-database-maxIdle"))
+	viper.BindPFlag("cache.database.maxOpen", serveCmd.PersistentFlags().Lookup("cache-database-maxOpen"))
+	viper.BindPFlag("cache.database.maxLifetime", serveCmd.PersistentFlags().Lookup("cache-database-maxLifetime"))
 }
