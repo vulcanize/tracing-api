@@ -17,7 +17,7 @@ jobs:
       - name: Docker Pull
         run: docker pull docker.pkg.github.com/vulcanize/tracing-api/tracing-api:${{steps.vars.outputs.sha}}
       - name: Tag docker image
-        run: docker tag docker.pkg.github.com/vulcanize/tracing-api/tracing-api:${{steps.vars.outputs.sha}} vulcanize/tracing-api:${{steps.vars.outputs.tag}}
+        run: docker tag docker.pkg.github.com/vulcanize/tracing-api/tracing-api:${{steps.vars.outputs.sha}} docker.pkg.github.com/vulcanize/tracing-api/tracing-api:${{steps.vars.outputs.tag}}
       - name: Docker Push to Github Docker Hub
         run:  docker push docker.pkg.github.com/vulcanize/tracing-api/tracing-api:${{steps.vars.outputs.tag}}
 
