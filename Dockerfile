@@ -9,12 +9,23 @@ ADD . /go/src/github.com/vulcanize/tracing-api
 WORKDIR /go/src/github.com/vulcanize/tracing-api
 RUN make linux
 
+# Build migration tool
+WORKDIR /
+RUN go get -u -d github.com/pressly/goose/cmd/goose
+WORKDIR /go/src/github.com/pressly/goose/cmd/goose
+RUN GCO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -tags='no_mysql no_sqlite' -o goose .
+
 # app container
 FROM alpine
 
+WORKDIR /app
+
 # keep binaries immutable
 COPY --from=builder /go/src/github.com/vulcanize/tracing-api/build/tracer-linux /usr/local/bin/tracer
+COPY --from=builder /go/src/github.com/pressly/goose/cmd/goose/goose /usr/local/bin/goose
+COPY --from=builder /go/src/github.com/vulcanize/tracing-api/startup_script.sh .
+COPY --from=builder /go/src/github.com/vulcanize/tracing-api/db/migrations migrations
 
 EXPOSE 8080
 
-ENTRYPOINT ["tracer"]
+ENTRYPOINT ["/app/startup_script.sh"]
