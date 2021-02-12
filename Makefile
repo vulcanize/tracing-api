@@ -31,8 +31,7 @@ $(BIN)/goose:
 
 ## Apply all migrations not already run
 migrate: $(GOOSE)
-	$(GOOSE) -dir db/migrations postgres "$(CONNECT_STRING)" up
-	pg_dump -O -s $(CONNECT_STRING) > db/schema.sql
+	$(GOOSE) -table goose_db_version_trace -dir db/migrations postgres "$(CONNECT_STRING)" up
 
 all: clean test linux darwin windows
 

@@ -37,7 +37,7 @@ func New() (*Service, error) {
 	return &Service{db}, nil
 }
 
-// TxTraceGraph infomation about callstack
+// TxTraceGraph information about callstack
 type TxTraceGraph struct {
 	TxHash      common.Hash    `json:"txHash"`
 	TxIndex     uint64         `json:"txIndex"`
@@ -46,14 +46,14 @@ type TxTraceGraph struct {
 	Frames      []tracer.Frame `json:"frames"`
 }
 
-func (srv *Service) getTxid(tx *sqlx.Tx, hash string) (uint64, error) {
-	stmt := `SELECT id FROM trace.transaction WHERE tx_hash = $1`
+func (srv *Service) getTxId(tx *sqlx.Tx, hash string) (uint64, error) {
+	stmt := `SELECT id FROM trace.graph_transaction WHERE tx_hash = $1`
 	var txID uint64
 	return txID, tx.QueryRowx(stmt, hash).Scan(&txID)
 }
 
 func (srv *Service) existTx(tx *sqlx.Tx, hash string) (bool, error) {
-	_, err := srv.getTxid(tx, hash)
+	_, err := srv.getTxId(tx, hash)
 	if err != nil {
 		if errors.Is(sql.ErrNoRows, err) {
 			return false, nil
@@ -66,7 +66,7 @@ func (srv *Service) existTx(tx *sqlx.Tx, hash string) (bool, error) {
 // UpsertTX update information about transaction
 func (srv *Service) UpsertTX(tx *sqlx.Tx, txHash string, txIndex uint64, bHash string, bNumber uint64) (uint64, error) {
 	stmt := `
-		INSERT INTO trace.transaction (tx_hash, index, block_hash, block_number)
+		INSERT INTO trace.graph_transaction (tx_hash, index, block_hash, block_number)
 			VALUES ($1, $2, $3, $4)
 		ON CONFLICT (tx_hash) DO UPDATE SET (index, block_hash, block_number) = ($2, $3, $4)
 		RETURNING id
@@ -101,7 +101,7 @@ func (srv *Service) SaveTxTraceGraph(data *TxTraceGraph) error {
 	}
 
 	stmt := `
-		INSERT INTO trace.call (opcode, src, dst, input, output, value, gas_used, transaction_id)
+		INSERT INTO trace.graph_call (opcode, src, dst, input, output, value, gas_used, transaction_id)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 	for _, frame := range data.Frames {

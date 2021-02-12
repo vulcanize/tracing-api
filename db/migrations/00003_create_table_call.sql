@@ -1,5 +1,5 @@
 -- +goose Up
-create table if not exists trace.call(
+create table if not exists trace.graph_call(
   id serial not null
 		constraint call_pk
 			primary key,
@@ -12,13 +12,13 @@ create table if not exists trace.call(
 	gas_used numeric not null,
 	transaction_id integer not null
 		constraint call_transaction_id_fk
-			references trace.transaction
+			references trace.graph_transaction
 );
-comment on table trace.call is 'Internal calls';
-comment on column trace.call.opcode is 'Solidity Opcode';
-comment on column trace.call.src is 'sender of internal tx';
-comment on column trace.call.input is 'Input of internal transaction. First 4 bytes are keccak256 hash of method signature';
-comment on column trace.call.output is 'Result of internal transaction';
+comment on table trace.graph_call is 'Internal calls';
+comment on column trace.graph_call.opcode is 'Solidity Opcode';
+comment on column trace.graph_call.src is 'sender of internal tx';
+comment on column trace.graph_call.input is 'Input of internal transaction. First 4 bytes are keccak256 hash of method signature';
+comment on column trace.graph_call.output is 'Result of internal transaction';
 
 -- +goose Down
-DROP TABLE trace.call;
+DROP TABLE trace.graph_call;
