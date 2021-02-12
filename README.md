@@ -9,6 +9,11 @@ The currently supported standard endpoints are:
 * `debug_txTraceGraph` - returns traces in graph format
 * `debug_writeTxTraceGraph` - writes traces to cache database
 
+
+## Application Diagram
+
+![](schema.png)
+
 ## Environment Variables
 
 | Name                      | Default Value    | Comment                          |
