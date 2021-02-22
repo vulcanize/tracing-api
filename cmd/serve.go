@@ -70,7 +70,7 @@ func startServers(server srv.Server, settings *srv.Config) error {
 		return err
 	}
 	logrus.Info("starting up HTTP server")
-	_, _, err = srpc.StartHTTPEndpoint(settings.HTTPEndpoint, server.APIs(), []string{"debug"}, nil, []string{"*"}, rpc.HTTPTimeouts{})
+	_, err = srpc.StartHTTPEndpoint(settings.HTTPEndpoint, server.APIs(), []string{"debug"}, nil, []string{"*"}, rpc.HTTPTimeouts{})
 	return err
 }
 

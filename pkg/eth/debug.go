@@ -30,7 +30,7 @@ func (api *DebugAPI) WriteTxTraceGraph(ctx context.Context, hash common.Hash) (*
 	if err != nil {
 		return nil, err
 	}
-	return data, api.cache.SaveTxTraceGraph(data)
+	return nil, api.cache.SaveTxTraceGraph(data)
 }
 
 func (api *DebugAPI) TxTraceGraph(ctx context.Context, hash common.Hash) (*cache.TxTraceGraph, error) {
@@ -58,7 +58,7 @@ func (api *DebugAPI) TxTraceGraph(ctx context.Context, hash common.Hash) (*cache
 			return nil, err
 		}
 		evm, _ := api.backend.GetEVM(ctx, msg, statedb, block.Header())
-		_, _, _, err = core.ApplyMessage(evm, msg, new(core.GasPool).AddGas(math.MaxUint64))
+		_, err = core.ApplyMessage(evm, msg, new(core.GasPool).AddGas(math.MaxUint64))
 		if err != nil {
 			return nil, err
 		}
@@ -66,14 +66,16 @@ func (api *DebugAPI) TxTraceGraph(ctx context.Context, hash common.Hash) (*cache
 
 	msg, err := tx.AsMessage(signer)
 	statedb.SetBalance(msg.From(), math.MaxBig256)
-	c := core.NewEVMContext(msg, block.Header(), api.backend, nil)
+	vmctx := core.NewEVMBlockContext(block.Header(), api.backend, nil)
+	txContext := core.NewEVMTxContext(msg)
+
 	tracer := tracer.NewCallTracer()
 	cfg := api.backend.Config.VmConfig
 	cfg.Debug = true
 	cfg.Tracer = tracer
 
-	evm := vm.NewEVM(c, statedb, api.backend.Config.ChainConfig, cfg)
-	_, _, _, err = core.ApplyMessage(evm, msg, new(core.GasPool).AddGas(math.MaxUint64))
+	evm := vm.NewEVM(vmctx, txContext, statedb, api.backend.Config.ChainConfig, cfg)
+	_, err = core.ApplyMessage(evm, msg, new(core.GasPool).AddGas(math.MaxUint64))
 	if err != nil {
 		return nil, err
 	}
