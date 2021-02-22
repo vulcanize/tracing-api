@@ -50,14 +50,14 @@ func (tracer *CallTracer) CaptureStart(from common.Address, to common.Address, c
 }
 
 // CaptureState logs a new structured log message and pushes it out to the environment
-func (tracer *CallTracer) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost uint64, memory *vm.Memory, stack *vm.Stack, contract *vm.Contract, depth int, err error) error {
+func (tracer *CallTracer) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost uint64, memory *vm.Memory, stack *vm.Stack, rStack *vm.ReturnStack, rData []byte, contract *vm.Contract, depth int, err error) error {
 	if op == vm.SSTORE {
 		if tracer.stores[contract.Address()] == nil {
 			tracer.stores[contract.Address()] = make(vm.Storage)
 		}
 		var (
-			value   = common.BigToHash(stack.Back(1))
-			address = common.BigToHash(stack.Back(0))
+			value   = common.BigToHash(stack.Back(1).ToBig())
+			address = common.BigToHash(stack.Back(0).ToBig())
 		)
 		tracer.stores[contract.Address()][address] = value
 		return nil
@@ -79,12 +79,12 @@ func (tracer *CallTracer) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, gas
 	//   send v wei and return the new address, where 0xff is a 8 byte value, this is the current contract’s address
 	//   as a 20 byte value and s is a big-endian 256-bit value
 	case vm.CREATE, vm.CREATE2:
-		frame.Value = new(big.Int).Set(stack.Back(0))
-		frame.Input = memory.GetCopy(stack.Back(1).Int64(), stack.Back(2).Int64())
+		frame.Value = new(big.Int).Set(stack.Back(0).ToBig())
+		frame.Input = memory.GetCopy(int64(stack.Back(1).Uint64()), int64(stack.Back(2).Uint64()))
 	// selfdestruct(a)
 	//   end execution, destroy current contract and send funds to a
 	case vm.SELFDESTRUCT:
-		frame.To = common.BigToAddress(stack.Back(0))
+		frame.To = common.BigToAddress(stack.Back(0).ToBig())
 		frame.Value = env.StateDB.GetBalance(contract.Address())
 	// call (g, a, v, in, insize, out, outsize)
 	//   call contract at address a with input mem[in…(in+insize))
@@ -94,19 +94,19 @@ func (tracer *CallTracer) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, gas
 	//   dentical to call but only use the code from a and stay
 	//   in the context of the current contract otherwise
 	case vm.CALL, vm.CALLCODE:
-		frame.To = common.BigToAddress(stack.Back(1))
-		frame.Value = new(big.Int).Set(stack.Back(2))
-		frame.Input = memory.GetCopy(stack.Back(3).Int64(), stack.Back(4).Int64())
-		frame.Output = memory.GetCopy(stack.Back(5).Int64(), stack.Back(6).Int64())
+		frame.To = common.BigToAddress(stack.Back(1).ToBig())
+		frame.Value = new(big.Int).Set(stack.Back(2).ToBig())
+		frame.Input = memory.GetCopy(int64(stack.Back(3).Uint64()), int64(stack.Back(4).Uint64()))
+		frame.Output = memory.GetCopy(int64(stack.Back(5).Uint64()), int64(stack.Back(6).Uint64()))
 	// delegatecall (g, a, in, insize, out, outsize)
 	//   identical to callcode but also keep caller and callvalue
 	// staticcall   (g, a, in, insize, out, outsize)
 	//   identical to call(g, a, 0, in, insize, out, outsize) but do not allow state modifications
 	case vm.DELEGATECALL, vm.STATICCALL:
-		frame.To = common.BigToAddress(stack.Back(1))
+		frame.To = common.BigToAddress(stack.Back(1).ToBig())
 		frame.Value = big.NewInt(0)
-		frame.Input = memory.GetCopy(stack.Back(2).Int64(), stack.Back(3).Int64())
-		frame.Output = memory.GetCopy(stack.Back(4).Int64(), stack.Back(5).Int64())
+		frame.Input = memory.GetCopy(int64(stack.Back(2).Uint64()), int64(stack.Back(3).Uint64()))
+		frame.Output = memory.GetCopy(int64(stack.Back(4).Uint64()), int64(stack.Back(5).Uint64()))
 	}
 	tracer.frames = append(tracer.frames, frame)
 	return nil
@@ -114,7 +114,7 @@ func (tracer *CallTracer) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, gas
 
 // CaptureFault implements the Tracer interface to trace an execution fault
 // while running an opcode.
-func (tracer *CallTracer) CaptureFault(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost uint64, memory *vm.Memory, stack *vm.Stack, contract *vm.Contract, depth int, err error) error {
+func (tracer *CallTracer) CaptureFault(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost uint64, memory *vm.Memory, stack *vm.Stack, rStack *vm.ReturnStack, contract *vm.Contract, depth int, err error) error {
 	return nil
 }
 
