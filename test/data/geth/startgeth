@@ -1,0 +1,8 @@
+#!/bin/bash
+
+/usr/local/bin/geth --datadir "/app/datadir" \
+  --networkid "4" --statediff --nodiscover --nousb \
+  --verbosity "3"  \
+  --allow-insecure-unlock --unlock "0x002df8650971e275726f7c7ba8562ccebd772299" --password "/app/pwd" --mine \
+  --http --http.addr "0.0.0.0" --http.port "8545" --http.corsdomain "*" --http.api "admin,debug,eth,miner,net,personal,txpool,web3,statediff" --http.vhosts "*" \
+  --ws --ws.addr "0.0.0.0" --ws.port "8546" --wsorigins "*" --wsapi "admin,debug,eth,miner,net,personal,txpool,web3,statediff"

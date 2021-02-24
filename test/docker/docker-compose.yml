@@ -1,0 +1,85 @@
+version: '3.3'
+
+services:
+  geth:
+    restart: always
+    build: 
+      context: ../data/geth
+      cache_from:
+       - alpine:latest
+       - golang:1.16-alpine
+    ports:
+      - "127.0.0.1:8545:8545"
+      - "127.0.0.1:8546:8546"
+  db:
+    restart: always
+    build: 
+      context: ../data/postgres
+      cache_from:
+       - postgres:11.5-alpine 
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "pwd"
+      POSTGRES_MULTIPLE_DATABASES: "vulcanize_public,tracing_public"
+    ports:
+      - "127.0.0.1:5432:5432"
+  eth-indexer:
+    restart: unless-stopped
+    depends_on:
+      - geth
+      - db
+    image: vulcanize/ipld-eth-indexer:v0.6.0-alpha
+    environment:
+      DATABASE_HOSTNAME: "db"
+      DATABASE_PORT: "5432"
+      DATABASE_NAME: "vulcanize_public"
+      DATABASE_USER: "postgres"
+      DATABASE_PASSWORD: "pwd"
+      ETH_HTTP_PATH: "geth:8545"
+      ETH_WS_PATH: "geth:8546"
+      ETH_CHAIN_ID: 4
+      ETH_NETWORK_ID: 4
+      VDB_COMMAND: sync
+  eth-server:
+    restart: unless-stopped
+    depends_on:
+      - geth
+      - db
+      - eth-indexer
+    image: vulcanize/ipld-eth-server:v0.3.0-alpha
+    environment:
+      VDB_COMMAND: "serve"
+      DATABASE_NAME: "vulcanize_public"
+      DATABASE_HOSTNAME: "db"
+      DATABASE_PORT: "5432"
+      DATABASE_USER: "postgres"
+      DATABASE_PASSWORD: "pwd"
+      SERVER_WS_PATH: "0.0.0.0:8081"
+      SERVER_HTTP_PATH: "0.0.0.0:8082"
+      ETH_HTTP_PATH: "geth:8545"
+    ports:
+     - "127.0.0.1:8080:8080"
+     - "127.0.0.1:8081:8081"
+  tracing-api:
+    depends_on:
+      - db
+    build:
+      context: ../../
+      cache_from:
+       - alpine:latest
+       - golang:1.13-alpine
+    environment:
+      VDB_COMMAND: "serve"
+      DATABASE_NAME: "vulcanize_public"
+      DATABASE_HOSTNAME: "db"
+      DATABASE_PORT: "5432"
+      DATABASE_USER: "postgres"
+      DATABASE_PASSWORD: "pwd"
+      CACHE_DATABASE_NAME: "tracing_public"
+      CACHE_DATABASE_HOSTNAME: "db"
+      CACHE_DATABASE_PORT: "5432"
+      CACHE_DATABASE_USER: "postgres"
+      CACHE_DATABASE_PASSWORD: "pwd"
+      SERVER_HTTP_PATH: "0.0.0.0:8083"
+    ports:
+     - "127.0.0.1:8083:8083"

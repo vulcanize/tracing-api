@@ -28,4 +28,4 @@ COPY --from=builder /go/src/github.com/vulcanize/tracing-api/db/migrations migra
 
 EXPOSE 8080
 
-ENTRYPOINT ["/app/startup_script.sh"]
+ENTRYPOINT ["/app/startup_script.sh", "serve"]
