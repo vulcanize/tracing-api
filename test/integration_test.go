@@ -43,12 +43,12 @@ func TestMain(t *testing.T) {
 	t.Logf("Call: %s", callTx.Hash().Hex())
 	time.Sleep(12 * time.Second)
 
-	resp, err := http.Post("127.0.0.1:8083", "application/json", strings.NewReader(fmt.Sprintf(
+	resp, err := http.Post("http://127.0.0.1:8083", "application/json", strings.NewReader(fmt.Sprintf(
 		`{
-      jsonrpc: "2.0",
-      id: 0,
-      method: "debug_txTraceGraph",
-      params: ["%s"]
+      "jsonrpc": "2.0",
+      "id": 0,
+      "method": "debug_txTraceGraph",
+      "params": ["%s"]
     }`,
 		callTx.Hash().Hex(),
 	)))
