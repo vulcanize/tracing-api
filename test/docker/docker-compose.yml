@@ -11,58 +11,106 @@ services:
     ports:
       - "127.0.0.1:8545:8545"
       - "127.0.0.1:8546:8546"
-  db:
+  ipfs:
+    image: ipfs/go-ipfs:v0.4.23
+    ports:
+      - '5001:5001'
+  vulcanizedb:
     restart: always
-    build: 
-      context: ../data/postgres
-      cache_from:
-       - postgres:11.5-alpine 
+    image: postgres:12.6
     environment:
+      POSTGRES_DB: "vulcanize"
       POSTGRES_USER: "postgres"
       POSTGRES_PASSWORD: "pwd"
-      POSTGRES_MULTIPLE_DATABASES: "vulcanize_public,tracing_public"
+    command: ["postgres", "-cshared_preload_libraries=pg_stat_statements"]
     ports:
       - "127.0.0.1:5432:5432"
-  eth-indexer:
-    restart: unless-stopped
+  tracingdb:
+    restart: always
+    image: postgres:12.6
+    environment:
+      POSTGRES_DB: "tracing"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "pwd"
+    command: ["postgres", "-cshared_preload_libraries=pg_stat_statements"]
+    ports:
+      - "127.0.0.1:5433:5432"
+  graphdb:
+    restart: always
+    image: postgres:12.6
+    environment:
+      POSTGRES_DB: "thegraph"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "pwd"
+    command: ["postgres", "-cshared_preload_libraries=pg_stat_statements"]
+    ports:
+      - "127.0.0.1:5434:5432"
+  graph:
+    restart: always
     depends_on:
       - geth
-      - db
+      - ipfs
+      - graphdb
+    image: graphprotocol/graph-node:latest
+    environment:
+      postgres_host: graphdb
+      postgres_user: postgres
+      postgres_pass: pwd
+      postgres_db: thegraph
+      ipfs: 'ipfs:5001'
+      ethereum: 'custom:http://geth:8545'
+      RUST_LOG: info
+    ports:
+      - '8000:8000'
+      - '8001:8001'
+      - '8020:8020'
+      - '8030:8030'
+      - '8040:8040'
+  eth-indexer:
+    restart: always
+    depends_on:
+      - geth
+      - vulcanizedb
     image: vulcanize/ipld-eth-indexer:v0.6.0-alpha
     environment:
-      DATABASE_HOSTNAME: "db"
-      DATABASE_PORT: "5432"
-      DATABASE_NAME: "vulcanize_public"
-      DATABASE_USER: "postgres"
-      DATABASE_PASSWORD: "pwd"
+      VDB_COMMAND: sync
+      DATABASE_HOSTNAME: vulcanizedb
+      DATABASE_PORT: 5432
+      DATABASE_NAME: vulcanize
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: pwd
       ETH_HTTP_PATH: "geth:8545"
       ETH_WS_PATH: "geth:8546"
       ETH_CHAIN_ID: 4
       ETH_NETWORK_ID: 4
-      VDB_COMMAND: sync
+      ETH_GENESIS_BLOCK: "0xa1569030790a6ca195d69a98217028ebcb2a3cde096407e189cf35d3c91f26ef"
   eth-server:
-    restart: unless-stopped
+    restart: always
     depends_on:
       - geth
-      - db
+      - vulcanizedb
       - eth-indexer
     image: vulcanize/ipld-eth-server:v0.3.0-alpha
     environment:
       VDB_COMMAND: "serve"
-      DATABASE_NAME: "vulcanize_public"
-      DATABASE_HOSTNAME: "db"
-      DATABASE_PORT: "5432"
-      DATABASE_USER: "postgres"
-      DATABASE_PASSWORD: "pwd"
+      DATABASE_HOSTNAME: vulcanizedb
+      DATABASE_PORT: 5432
+      DATABASE_NAME: vulcanize
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: pwd
       SERVER_WS_PATH: "0.0.0.0:8081"
       SERVER_HTTP_PATH: "0.0.0.0:8082"
       ETH_HTTP_PATH: "geth:8545"
+      ETH_WS_PATH: "geth:8546"
+      ETH_CHAIN_ID: 4
+      ETH_NETWORK_ID: 4
+      ETH_GENESIS_BLOCK: "0xa1569030790a6ca195d69a98217028ebcb2a3cde096407e189cf35d3c91f26ef"
     ports:
-     - "127.0.0.1:8080:8080"
-     - "127.0.0.1:8081:8081"
+     - "127.0.0.1:8082:8082"
   tracing-api:
     depends_on:
-      - db
+      - vulcanizedb
+      - tracingdb
     build:
       context: ../../
       cache_from:
@@ -70,16 +118,21 @@ services:
        - golang:1.13-alpine
     environment:
       VDB_COMMAND: "serve"
-      DATABASE_NAME: "vulcanize_public"
-      DATABASE_HOSTNAME: "db"
-      DATABASE_PORT: "5432"
-      DATABASE_USER: "postgres"
-      DATABASE_PASSWORD: "pwd"
-      CACHE_DATABASE_NAME: "tracing_public"
-      CACHE_DATABASE_HOSTNAME: "db"
-      CACHE_DATABASE_PORT: "5432"
-      CACHE_DATABASE_USER: "postgres"
-      CACHE_DATABASE_PASSWORD: "pwd"
+      DATABASE_HOSTNAME: vulcanizedb
+      DATABASE_PORT: 5432
+      DATABASE_NAME: vulcanize
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: pwd      
+      CACHE_DATABASE_HOSTNAME: tracingdb
+      CACHE_DATABASE_PORT: 5432
+      CACHE_DATABASE_NAME: tracing
+      CACHE_DATABASE_USER: postgres
+      CACHE_DATABASE_PASSWORD: pwd
       SERVER_HTTP_PATH: "0.0.0.0:8083"
+      ETH_HTTP_PATH: "geth:8545"
+      ETH_WS_PATH: "geth:8546"
+      ETH_CHAIN_ID: 4
+      ETH_NETWORK_ID: 4
+      ETH_GENESIS_BLOCK: "0xa1569030790a6ca195d69a98217028ebcb2a3cde096407e189cf35d3c91f26ef"
     ports:
      - "127.0.0.1:8083:8083"
