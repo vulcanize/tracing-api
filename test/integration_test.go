@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/vulcanize/tracing-api/test/contracts"
+	"github.com/vulcanize/tracing-api/test/enviroment/contracts"
 )
 
 const pkeyHEX = "d91499da14f0a5f0dc3c924bc8068340e3be0466c01017f34b90cee9ab73fb36"
@@ -36,7 +36,7 @@ func TestMain(t *testing.T) {
 	t.Logf("Transaction: %s", deployTx.Hash().Hex())
 	time.Sleep(12 * time.Second)
 
-	callTx, err := contract.Watch(auth)
+	callTx, err := contract.Sync(auth)
 	if err != nil {
 		t.Error(err)
 	}

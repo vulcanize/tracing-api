@@ -1,0 +1,5 @@
+type Sync @entity {
+  id: ID!
+  key: String
+  value: BigInt
+}

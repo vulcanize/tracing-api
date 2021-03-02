@@ -1,0 +1,27 @@
+{
+  "name": "bwatcher",
+  "version": "0.1.0",
+  "scripts": {
+    "build-contract": "solc contracts/Storage.sol --abi -o abis --overwrite && solc contracts/Storage.sol --bin -o bin --overwrite",
+    "build-package": "abigen --abi ./abis/BlockNumStorage.abi --bin ./bin/BlockNumStorage.bin --pkg contracts --out ./BlockNumStorage.go",
+    "create": "graph create vulcanize/bwatcher --node https://api.thegraph.com/deploy/",
+    "create-local": "graph create vulcanize/bwatcher --node http://127.0.0.1:8020",
+    "codegen": "graph codegen",
+    "build": "graph build",
+    "deploy": "graph deploy vulcanize/bwatcher --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/",
+    "deploy-local": "graph deploy vulcanize/bwatcher --ipfs http://localhost:5001 --node http://127.0.0.1:8020",
+    "deploy-contract": "truffle deploy"
+  },
+  "devDependencies": {
+    "@graphprotocol/graph-cli": "^0.19.0",
+    "@graphprotocol/graph-ts": "^0.19.0",
+    "solc": "^0.8.1",
+    "truffle": "^5.2.1"
+  },
+  "dependencies": {
+    "babel-polyfill": "^6.26.0",
+    "babel-register": "^6.26.0",
+    "truffle-contract": "^4.0.5",
+    "truffle-hdwallet-provider": "^1.0.4"
+  }
+}

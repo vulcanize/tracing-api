@@ -1,16 +1,6 @@
 version: '3.3'
 
-services:
-  geth:
-    restart: always
-    build: 
-      context: ./geth
-      cache_from:
-       - alpine:latest
-       - golang:1.16-alpine
-    ports:
-      - "127.0.0.1:8545:8545"
-      - "127.0.0.1:8546:8546"
+services:   
   ipfs:
     image: ipfs/go-ipfs:v0.4.23
     ports:
@@ -45,6 +35,24 @@ services:
     command: ["postgres", "-cshared_preload_libraries=pg_stat_statements"]
     ports:
       - "127.0.0.1:5434:5432"
+  geth:
+    restart: always
+    depends_on:
+      - vulcanizedb
+    build: 
+      context: ./geth
+      cache_from:
+       - alpine:latest
+       - golang:1.16-alpine
+    environment:
+      DATABASE_HOSTNAME: vulcanizedb
+      DATABASE_PORT: 5432
+      DATABASE_NAME: vulcanize
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: pwd
+    ports:
+      - "127.0.0.1:8545:8545"
+      - "127.0.0.1:8546:8546"
   graph:
     restart: always
     depends_on:
@@ -58,7 +66,7 @@ services:
       postgres_pass: pwd
       postgres_db: thegraph
       ipfs: 'ipfs:5001'
-      ethereum: 'custom:http://geth:8545'
+      ethereum: 'mainnet:http://geth:8545'
       RUST_LOG: info
     ports:
       - '8000:8000'
@@ -66,47 +74,6 @@ services:
       - '8020:8020'
       - '8030:8030'
       - '8040:8040'
-  eth-indexer:
-    restart: always
-    depends_on:
-      - geth
-      - vulcanizedb
-    image: vulcanize/ipld-eth-indexer:v0.6.0-alpha
-    environment:
-      VDB_COMMAND: sync
-      DATABASE_HOSTNAME: vulcanizedb
-      DATABASE_PORT: 5432
-      DATABASE_NAME: vulcanize
-      DATABASE_USER: postgres
-      DATABASE_PASSWORD: pwd
-      ETH_HTTP_PATH: "geth:8545"
-      ETH_WS_PATH: "geth:8546"
-      ETH_CHAIN_ID: 4
-      ETH_NETWORK_ID: 4
-      ETH_GENESIS_BLOCK: "0xa1569030790a6ca195d69a98217028ebcb2a3cde096407e189cf35d3c91f26ef"
-  eth-server:
-    restart: always
-    depends_on:
-      - geth
-      - vulcanizedb
-      - eth-indexer
-    image: vulcanize/ipld-eth-server:v0.3.0-alpha
-    environment:
-      VDB_COMMAND: "serve"
-      DATABASE_HOSTNAME: vulcanizedb
-      DATABASE_PORT: 5432
-      DATABASE_NAME: vulcanize
-      DATABASE_USER: postgres
-      DATABASE_PASSWORD: pwd
-      SERVER_WS_PATH: "0.0.0.0:8081"
-      SERVER_HTTP_PATH: "0.0.0.0:8082"
-      ETH_HTTP_PATH: "geth:8545"
-      ETH_WS_PATH: "geth:8546"
-      ETH_CHAIN_ID: 4
-      ETH_NETWORK_ID: 4
-      ETH_GENESIS_BLOCK: "0xa1569030790a6ca195d69a98217028ebcb2a3cde096407e189cf35d3c91f26ef"
-    ports:
-     - "127.0.0.1:8082:8082"
   tracing-api:
     depends_on:
       - vulcanizedb
