@@ -7,20 +7,17 @@ dataSources:
   - kind: ethereum/contract
     name: BlockNumStorage
     network: mainnet
-    source:
-      address: '0x2E645469f354BB4F5c8a05B3b30A929361cf77eC'
-      abi: BlockNumStorage
+    source: "0x577421061B5963C9E66C603B985f58fc2cCfE93c"
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.4
       language: wasm/assemblyscript
       entities:
-       - Sync
+        - Sync
       abis:
-       - name: BlockNumStorage
-         file: abis/BlockNumStorage.abi
+        - name: BlockNumStorage
+          file: abis/BlockNumStorage.abi
       callHandlers:
-       - function: sync(string)
-         handler: handleSync
+        - function: sync(string)
+          handler: handleSync
       file: ./src/mapping.ts
-    
