@@ -27,11 +27,12 @@ echo "Running database migrations"
 if [[ $? -eq 0 ]]; then
   echo "Running the geth process"
   /app/ethereum/build/bin/geth --datadir "/app/datadir" \
-    --statediff --statediff.dbnodeid 1 --statediff.dbclientname test1 --statediff.writing=true --statediff.db="host=$DATABASE_HOSTNAME port=$DATABASE_PORT user=$DATABASE_USER password=$DATABASE_PASSWORD dbname=$DATABASE_NAME sslmode=disable" \
-    --verbosity "3" --networkid "4" --nodiscover --nousb \
-    --allow-insecure-unlock --unlock "0x002df8650971e275726f7c7ba8562ccebd772299" --password "/app/pwd" --mine \
+    --nodiscover --nodekeyhex "3132508130d9b967d1f15663c6d446e58afd5be122ab32c8e3b0c1ae9920f67e" \
+    --statediff --statediff.dbnodeid "1" --statediff.dbclientname "test1" --statediff.writing --statediff.db="host=$DATABASE_HOSTNAME port=$DATABASE_PORT user=$DATABASE_USER password=$DATABASE_PASSWORD dbname=$DATABASE_NAME sslmode=disable" \
+    --verbosity "3" --networkid "4" --nousb \
+    --allow-insecure-unlock --unlock "0x002df8650971e275726f7c7ba8562ccebd772299" --password "/app/pwd" --mine --miner.threads "1" --miner.etherbase "0x002df8650971e275726f7c7ba8562ccebd772299" \
     --http --http.addr "0.0.0.0" --http.port "8545" --http.corsdomain "*" --http.api "admin,debug,eth,miner,net,personal,txpool,web3,statediff" --http.vhosts "*" \
-    --ws --ws.addr "0.0.0.0" --ws.port "8546" --wsorigins "*" --wsapi "admin,debug,eth,miner,net,personal,txpool,web3,statediff"
+    --ws --ws.addr "0.0.0.0" --ws.port "8546" --ws.origins "*" --ws.api "admin,debug,eth,miner,net,personal,txpool,web3,statediff"
 else
     echo "Could not run migrations. Are the database details correct?"
     exit 1

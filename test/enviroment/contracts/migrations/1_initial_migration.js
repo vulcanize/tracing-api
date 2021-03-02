@@ -8,7 +8,7 @@ async function main(deployer) {
   const store = await deployer.deploy(BlockNumStorage);
 
   let subgraph = yaml.parse(fs.readFileSync("subgraph.yaml", {encoding:"utf-8"}));
-  subgraph.dataSources[0].source = store.address;
+  subgraph.dataSources[0].source.address = store.address;
   fs.writeFileSync("subgraph.yaml", yaml.stringify(subgraph))
 }
 

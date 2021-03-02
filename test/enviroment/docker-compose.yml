@@ -53,11 +53,37 @@ services:
     ports:
       - "127.0.0.1:8545:8545"
       - "127.0.0.1:8546:8546"
+      - "30303:30303"
+      - "30303:30303/udp"
+  openethereum:
+    restart: always
+    depends_on:
+      - geth
+    image: openethereum/openethereum:v3.1.1
+    volumes:
+      - ./geth/poanet-parity.json:/poanet-parity.json:ro
+    command:
+      --tracing on
+      --unsafe-expose
+      --interface "all"
+      --port "30304"
+      --chain "/poanet-parity.json"
+      --network-id "4"
+      --jsonrpc-interface="all"
+      --jsonrpc-hosts="all"
+      --jsonrpc-cors="all"
+      --jsonrpc-apis="all"
+      --bootnodes="enode://91d1db839daff216a50847d5c77c716806e2c7dd7d591af2ade944fc4f1d55ccbfda4aa92a8156d4f4e08ffa28425579e797834e219aa109a69a5daeba6d7f94@geth:30303"
+    ports:
+      - "127.0.0.1:8547:8545"
+      - "30304:30304"
+      - "30304:30304/udp"
   graph:
     restart: always
     depends_on:
       - geth
       - ipfs
+      - openethereum
       - graphdb
     image: graphprotocol/graph-node:latest
     environment:
@@ -66,8 +92,8 @@ services:
       postgres_pass: pwd
       postgres_db: thegraph
       ipfs: 'ipfs:5001'
-      ethereum: 'mainnet:http://geth:8545'
-      RUST_LOG: info
+      ethereum: 'mainnet:http://openethereum:8545'
+      RUST_LOG: error
     ports:
       - '8000:8000'
       - '8001:8001'

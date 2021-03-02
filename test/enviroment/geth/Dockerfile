@@ -12,9 +12,9 @@ RUN go build -tags='no_mysql no_sqlite' -o /go/bin/goose github.com/pressly/goos
 RUN cd /app/indexer && make
 RUN cd /app/ethereum && make geth
 COPY datadir /app/datadir
-COPY genesis.json /app
+COPY poanet.json /app
 COPY startgeth .
-RUN touch /app/pwd && /app/ethereum/build/bin/geth --datadir "/app/datadir" init /app/genesis.json
+RUN touch /app/pwd && /app/ethereum/build/bin/geth --networkid "4" --datadir "/app/datadir" init /app/poanet.json
 
 EXPOSE 8545 8546
 
