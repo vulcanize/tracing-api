@@ -1,23 +1,23 @@
 specVersion: 0.0.2
-description: Block number storage
-repository: https://github.com/vulcanize/tracing-api
 schema:
   file: ./schema.graphql
 dataSources:
   - kind: ethereum/contract
     name: BlockNumStorage
     network: mainnet
-    source: "0x577421061B5963C9E66C603B985f58fc2cCfE93c"
+    source:
+      address: "0x577421061B5963C9E66C603B985f58fc2cCfE93c"
+      abi: BlockNumStorage
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.4
       language: wasm/assemblyscript
       entities:
-        - Sync
+       - Sync
       abis:
-        - name: BlockNumStorage
-          file: abis/BlockNumStorage.abi
+       - name: BlockNumStorage
+         file: abis/BlockNumStorage.abi
       callHandlers:
-        - function: sync(string)
-          handler: handleSync
-      file: ./src/mapping.ts
+       - function: sync(string)
+         handler: handleSync
+      file: src/mapping.ts
