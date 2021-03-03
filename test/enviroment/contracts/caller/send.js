@@ -15,9 +15,7 @@ async function main() {
     const { address } = IBlockNumStorage.networks[network];
     const bstore = new web3.eth.Contract(IBlockNumStorage.abi, address);
     txs = await Promise.all([
-      bstore.methods.sync("counter").send({ from, value: '0x5551' }),
-      bstore.methods.sync("counter").send({ from, value: '0x5552' }),
-      bstore.methods.sync("counter").send({ from, value: '0x5553' })
+      bstore.methods.sync("counter").send({ from, value: '0x5551' })
     ]);
   }
   await sleep(2000);

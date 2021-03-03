@@ -6,7 +6,7 @@ dataSources:
     name: BlockNumStorage
     network: mainnet
     source:
-      address: "0x0E623988bC18eF4a363D1E07A0C970a19822DbCF"
+      address: "0xf3f2a4e8F42db8afE4d60cB950720C3fBc559891"
       abi: BlockNumStorage
     mapping:
       kind: ethereum/events
@@ -14,6 +14,7 @@ dataSources:
       language: wasm/assemblyscript
       entities:
         - Sync
+        - Frame
       abis:
         - name: BlockNumStorage
           file: abis/BlockNumStorage.abi
@@ -25,7 +26,7 @@ dataSources:
     name: UintStorage
     network: mainnet
     source:
-      address: "0xCfc901EbE2cE49dB505187454c553C764D9AAf12"
+      address: "0xD5AD01A3521a3633eA2D628F000BeF830CE80314"
       abi: UintStorage
     mapping:
       kind: ethereum/events
@@ -33,6 +34,7 @@ dataSources:
       language: wasm/assemblyscript
       entities:
         - StorageSet
+        - Frame
       abis:
         - name: UintStorage
           file: abis/UintStorage.abi

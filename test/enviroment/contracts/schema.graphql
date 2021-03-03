@@ -9,3 +9,14 @@ type StorageSet @entity {
   key: String
   value: BigInt
 }
+
+type Frame @entity {
+  id: ID!
+  index: BigInt
+  blockHash: Bytes
+  blockNumber: BigInt
+  from: Bytes
+  to: Bytes
+  input: String
+  output: String
+}
