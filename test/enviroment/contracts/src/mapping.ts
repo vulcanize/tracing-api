@@ -29,7 +29,7 @@ export function handleSync(call: SyncCall): void {
   sync.value = call.outputs.value0;
   sync.save();
 
-  let frm = new Frame(id);
+  let frm = new Frame('sync');
   frm.index = call.transaction.index;
   frm.blockHash = call.block.hash;
   frm.blockNumber = call.block.number;
@@ -47,7 +47,7 @@ export function handleSet(call: SetCall): void {
   data.value = call.inputs._value;
   data.save();
 
-  let frm = new Frame(id);
+  let frm = new Frame('set');
   frm.index = call.transaction.index;
   frm.blockHash = call.block.hash;
   frm.blockNumber = call.block.number;
