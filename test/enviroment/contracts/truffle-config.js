@@ -1,9 +1,10 @@
+console.log(`${process.env.CNT_ETH_HOST}:${process.env.CNT_ETH_PORT}`);
 
 module.exports = {
   networks: {
     development: {
-      host: "localhost",
-      port: 8545,
+      host: process.env.CNT_ETH_HOST,
+      port: process.env.CNT_ETH_PORT,
       network_id: "*",
       gas: 8000000,
     },
@@ -16,14 +17,13 @@ module.exports = {
   // Configure your compilers
   compilers: {
     solc: {
-      version: "0.8.1",
       settings: {
         optimizer: {
           enabled: true,
           runs: 1
         }
       },
-      //version: "node_modules/solc"
+      version: "node_modules/solc"
     }
   }
 };

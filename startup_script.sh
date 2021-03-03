@@ -1,6 +1,6 @@
 #!/bin/sh
+sleep 1
 # Runs the db migrations and starts the service
-
 set +x
 
 # Construct the connection string for postgres

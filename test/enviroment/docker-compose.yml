@@ -129,3 +129,17 @@ services:
       ETH_GENESIS_BLOCK: "0xa1569030790a6ca195d69a98217028ebcb2a3cde096407e189cf35d3c91f26ef"
     ports:
      - "127.0.0.1:8083:8083"
+  contracts:
+    depends_on:
+      - geth
+      - ipfs
+      - graph
+    build: 
+      context: ./contracts
+    environment:
+      CNT_ETH_HOST: geth
+      CNT_ETH_PORT: 8545
+      CNT_IPFS_URL: "http://ipfs:5001"
+      CNT_GRAPH_URL: "http://graph:8020/"
+    ports:
+      - "127.0.0.1:3000:3000"
