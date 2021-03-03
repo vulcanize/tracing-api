@@ -3,3 +3,9 @@ type Sync @entity {
   key: String
   value: BigInt
 }
+
+type StorageSet @entity {
+  id: ID!
+  key: String
+  value: BigInt
+}
