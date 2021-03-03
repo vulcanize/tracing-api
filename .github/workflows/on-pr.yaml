@@ -33,6 +33,8 @@ jobs:
         run: |
           cd test/enviroment/contracts && \
           npx i && \
-          npx truffle deploy && \
-          npx graph codegen && \
-          npx graph build
+          npm run deploy-contract && \
+          npm run codegen && \
+          npm run build  && \
+          npx run create && \
+          npx run deploy
