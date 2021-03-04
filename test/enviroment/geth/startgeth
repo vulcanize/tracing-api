@@ -21,7 +21,7 @@ VDB_PG_CONNECT=postgresql://$DATABASE_USER:$DATABASE_PASSWORD@$DATABASE_HOSTNAME
 # Run the DB migrations
 echo "Connecting with: $VDB_PG_CONNECT"
 echo "Running database migrations"
-/go/bin/goose -dir /app/statediff/db/migrations postgres "$VDB_PG_CONNECT" up
+/go/bin/goose -dir /app/server/db/migrations postgres "$VDB_PG_CONNECT" up
 
 # If the db migrations ran without err
 if [[ $? -eq 0 ]]; then
