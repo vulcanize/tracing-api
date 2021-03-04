@@ -4,6 +4,7 @@
   "scripts": {
     "start": "./start.sh",
     "deploy-contract": "truffle deploy",
+    "build-contracts": "solc ./contracts/Storage.sol --abi -o abis --overwrite && solc ./contracts/Storage.sol --bin -o bin --overwrite",
     "codegen": "graph codegen",
     "build": "graph build",
     "create": "graph create --node http://localhost:8020/ vulcanize/bnumstore",
@@ -13,7 +14,7 @@
   "devDependencies": {
     "@graphprotocol/graph-cli": "^0.19.0",
     "@graphprotocol/graph-ts": "^0.19.0",
-    "solc": "^0.8.1",
+    "solc": "0.5.12",
     "truffle": "^5.2.1",
     "yaml": "^1.10.0"
   },

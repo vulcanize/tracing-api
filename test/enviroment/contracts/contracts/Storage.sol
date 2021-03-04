@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: MIT
-pragma solidity >=0.4.22 <0.9.0;
+pragma solidity >=0.5.12;
 
 contract UintStorage {
 
@@ -21,7 +20,7 @@ contract BlockNumStorage {
   function sync(string memory key) public payable returns (uint) {
     uint n = store.get(key);
     if (block.number != n){
-      store.set{value:msg.value}(key, block.number);
+      store.set.value(msg.value)(key, block.number);
     }
     return store.get(key);
   }

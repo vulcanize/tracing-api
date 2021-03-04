@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
@@ -16,6 +15,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" //postgres driver
 	"github.com/vulcanize/ipld-eth-indexer/pkg/postgres"
+	"github.com/vulcanize/tracing-api/pkg/cache"
 )
 
 var (
@@ -47,8 +47,8 @@ func callTx(path string) (string, error) {
 }
 
 // callTracingAPI get callstack for given tx hash
-func callTracingAPI(path string, hash string) (string, error) {
-	resp, err := http.Post(path, "application/json", strings.NewReader(fmt.Sprintf(
+func callTracingAPI(path string, hash string) (*cache.TxTraceGraph, error) {
+	res, err := http.Post(path, "application/json", strings.NewReader(fmt.Sprintf(
 		`{
 			"jsonrpc": "2.0",
 			"id": 0,
@@ -58,16 +58,23 @@ func callTracingAPI(path string, hash string) (string, error) {
 		hash,
 	)))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	defer resp.Body.Close()
+	defer res.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
+	decoder := json.NewDecoder(res.Body)
+	var tmp struct {
+		Err    error               `json:"error,omitempty"`
+		Result *cache.TxTraceGraph `json:"result,omitempty"`
+	}
+	if err := decoder.Decode(&tmp); err != nil {
+		return nil, err
+	}
+	if tmp.Err != nil {
+		return nil, err
 	}
 
-	return string(body), nil
+	return tmp.Result, nil
 }
 
 type frame struct {
@@ -121,7 +128,7 @@ func TestMain(t *testing.T) {
 		return
 	}
 
-	calls, err := callTracingAPI("http://127.0.0.1:8083", hash)
+	calls, err := callTracingAPI("http://127.0.0.1:8092", hash)
 	if err != nil {
 		t.Error(err)
 		return
