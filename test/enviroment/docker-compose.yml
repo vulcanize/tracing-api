@@ -126,7 +126,7 @@ services:
       ETH_WS_PATH: "geth:8546"
       ETH_CHAIN_ID: 4
       ETH_NETWORK_ID: 4
-      ETH_GENESIS_BLOCK: "0xa1569030790a6ca195d69a98217028ebcb2a3cde096407e189cf35d3c91f26ef"
+      ETH_GENESIS_BLOCK: "0x2c05e4d0ac1a129f841ab1e1ffb7c59065cfca6898814bc1d89dac1af0345be6"
     ports:
      - "127.0.0.1:8083:8083"
   contracts:
