@@ -117,7 +117,7 @@ type frame struct {
 	output string
 }
 
-func getGraphFrames() ([]frame, error) {
+func getGraphFrames(hash string) ([]frame, error) {
 	db, err := sqlx.Connect("postgres", postgres.DbConnectionString(postgres.Config{
 		Name:     "thegraph",
 		Hostname: "127.0.0.1",
@@ -136,7 +136,7 @@ func getGraphFrames() ([]frame, error) {
 		Input  string
 		Output string
 	}{}
-	if err := db.Select(&tmp, `SELECT "id", "from", "to", "input", "output" FROM sgd1.frame`); err != nil {
+	if err := db.Select(&tmp, `SELECT "id", "from", "to", "input", "output" FROM sgd1.frame WHERE "hash"=$1`, hash); err != nil {
 		return nil, err
 	}
 	data := make([]frame, len(tmp))
@@ -168,19 +168,19 @@ func TestMain(t *testing.T) {
 		return
 	}
 
-	graphFrames, err := getGraphFrames()
+	graphFrames, err := getGraphFrames(hash)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	t.Log("-------------------")
+	t.Log("--------------------------------------")
 	t.Logf("hash: %s", hash)
-	t.Log("-------------------")
-	t.Logf("Tracing: %+v", calls)
-	t.Log("-------------------")
-	t.Logf("DGraph: %+v", graphFrames)
-	t.Log("-------------------")
+	t.Log("--------------------------------------")
+	t.Logf("TracingAPI: %+v", calls)
+	t.Log("--------------------------------------")
+	t.Logf("TheGraph: %+v", graphFrames)
+	t.Log("--------------------------------------")
 
 	if len(calls.Frames) < len(graphFrames) && false {
 		t.Errorf("tracing-api callstack (%d) less then callstack from thegraph (%d)", len(calls.Frames), len(graphFrames))
@@ -210,12 +210,20 @@ func TestMain(t *testing.T) {
 			return
 		}
 
+		t.Log("Compare frames")
+		t.Logf("TracingAPI frame: %+v", frame)
+		t.Logf("TheGraph frame: %+v", graphFrame)
+
+		t.Logf("  Compare 'from': TheGraph[%s], TracingAPI[%s]", graphFrame.from.Hex(), frame.From.Hex())
 		if !bytes.Equal(graphFrame.from.Bytes(), frame.From.Bytes()) {
 			t.Errorf("Bad 'FROM'. Want: %s, Got: %s", graphFrame.from.Hex(), frame.From.Hex())
+			return
 		}
 
+		t.Logf("  Compare 'to': TheGraph[%s], TracingAPI[%s]", graphFrame.to.Hex(), frame.To.Hex())
 		if !bytes.Equal(frame.To.Bytes(), graphFrame.to.Bytes()) {
-			t.Errorf("Bad 'TO'. Want: %s, Got: %s", graphFrame.from.Hex(), frame.From.Hex())
+			t.Errorf("Bad 'TO'. Want: %s, Got: %s", graphFrame.to.Hex(), frame.To.Hex())
+			return
 		}
 
 		if graphFrame.id == "sync" {
@@ -244,6 +252,7 @@ func TestMain(t *testing.T) {
 				graphInputs[tmpGraphInputs[i].Name] = tmpGraphInputs[i].Value
 			}
 
+			t.Logf("  Compare inputs: TheGraph[%+v], TracingAPI[%+v]", graphInputs, callInputs)
 			cmp, err := compareKeyFromMapAsStr("key", callInputs, graphInputs)
 			if err != nil || cmp != 0 {
 				t.Errorf("Bad values in input args: [%#v][%#v]", callInputs["key"], graphInputs["key"])
@@ -273,6 +282,7 @@ func TestMain(t *testing.T) {
 				graphOutputs[tmpGraphOutputs[i].Name] = tmpGraphOutputs[i].Value
 			}
 
+			t.Logf("  Compare outputs: TheGraph[%+v], TracingAPI[%+v]", graphOutputs, callOutputs)
 			if cmp, err := compareKeyFromMapAsStr("", callOutputs, graphOutputs); err != nil || cmp != 0 {
 				t.Errorf("Bad values in output args: [%#v][%#v] %v", callOutputs[""], graphOutputs[""], err)
 			}
@@ -306,6 +316,7 @@ func TestMain(t *testing.T) {
 				graphInputs[tmpGraphInputs[i].Name] = tmpGraphInputs[i].Value
 			}
 
+			t.Logf("  Compare inputs: TheGraph[%+v], TracingAPI[%+v]", graphInputs, callInputs)
 			if cmp, err := compareKeyFromMapAsStr("key", callInputs, graphInputs); err != nil || cmp != 0 {
 				t.Errorf("Bad values in input args: [%#v][%#v] %v", callInputs["key"], graphInputs["key"], err)
 			}
@@ -314,5 +325,6 @@ func TestMain(t *testing.T) {
 				t.Errorf("Bad values in input args: [%#v][%#v] %v", callInputs["key"], graphInputs["key"], err)
 			}
 		}
+		t.Log("--------------------------------------")
 	}
 }
