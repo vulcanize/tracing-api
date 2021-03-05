@@ -44,6 +44,7 @@ export function handleSync(call: SyncCall): void {
   frm.to = call.to;
   frm.input = stringify(call.inputValues);
   frm.output = stringify(call.outputValues);
+  frm.hash = id;
   frm.save();
 }
 
@@ -62,5 +63,6 @@ export function handleSet(call: SetCall): void {
   frm.to = call.to;
   frm.input = stringify(call.inputValues);
   frm.output = stringify(call.outputValues);
+  frm.hash = id;
   frm.save();
 }

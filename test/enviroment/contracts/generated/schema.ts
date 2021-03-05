@@ -290,4 +290,21 @@ export class Frame extends Entity {
       this.set("output", Value.fromString(value as string));
     }
   }
+
+  get hash(): string | null {
+    let value = this.get("hash");
+    if (value === null || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toString();
+    }
+  }
+
+  set hash(value: string | null) {
+    if (value === null) {
+      this.unset("hash");
+    } else {
+      this.set("hash", Value.fromString(value as string));
+    }
+  }
 }

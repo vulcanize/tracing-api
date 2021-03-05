@@ -19,4 +19,5 @@ type Frame @entity {
   to: Bytes
   input: String
   output: String
+  hash: String
 }
