@@ -35,6 +35,7 @@ jobs:
       - name: Checking running containers
         run: |
           sleep 10 && \
+          cd test/enviroment && \
           docker-compose ps -a
       - name: Test
         run: |
