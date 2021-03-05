@@ -34,7 +34,7 @@ jobs:
         run: cd test/enviroment && docker-compose pull && docker-compose up -d
       - name: Test
         run: |
-          sleep 60 && \
+          while [ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:8545)" != "200" ]; do echo "waiting..." && sleep 5; done && \
           cd test/enviroment/contracts && \
           npm i && \
           npm run deploy-contract && \
