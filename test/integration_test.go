@@ -1,6 +1,7 @@
 package test
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -83,6 +85,30 @@ func callTracingAPI(path string, hash string) (*cache.TxTraceGraph, error) {
 	return tmp.Result, nil
 }
 
+func compareKeyFromMapAsStr(key string, a map[string]interface{}, b map[string]interface{}) (int, error) {
+	aRawValue, ok := a[key]
+	if !ok {
+		return 0, fmt.Errorf("key:%s isn't exist", key)
+	}
+
+	bRawValue, ok := b[key]
+	if !ok {
+		return 0, fmt.Errorf("key:%s isn't exist", key)
+	}
+
+	aValue, ok := aRawValue.(string)
+	if !ok {
+		return 0, fmt.Errorf("cant convert %#v to string", aRawValue)
+	}
+
+	bValue, ok := bRawValue.(string)
+	if !ok {
+		return 0, fmt.Errorf("cant convert %#v to string", bRawValue)
+	}
+
+	return strings.Compare(aValue, bValue), nil
+}
+
 type frame struct {
 	id     string
 	from   common.Address
@@ -134,6 +160,8 @@ func TestMain(t *testing.T) {
 		return
 	}
 
+	time.Sleep(2 * time.Second)
+
 	calls, err := callTracingAPI("http://127.0.0.1:8083", hash)
 	if err != nil {
 		t.Error(err)
@@ -146,7 +174,15 @@ func TestMain(t *testing.T) {
 		return
 	}
 
-	if len(calls.Frames) > len(graphFrames) {
+	t.Log("-------------------")
+	t.Logf("hash: %s", hash)
+	t.Log("-------------------")
+	t.Logf("Tracing: %+v", calls)
+	t.Log("-------------------")
+	t.Logf("DGraph: %+v", graphFrames)
+	t.Log("-------------------")
+
+	if len(calls.Frames) < len(graphFrames) && false {
 		t.Errorf("tracing-api callstack (%d) less then callstack from thegraph (%d)", len(calls.Frames), len(graphFrames))
 		return
 	}
@@ -173,23 +209,110 @@ func TestMain(t *testing.T) {
 			t.Errorf("Method [%s] doesn't exist in frame map", graphFrame.id)
 			return
 		}
+
+		if !bytes.Equal(graphFrame.from.Bytes(), frame.From.Bytes()) {
+			t.Errorf("Bad 'FROM'. Want: %s, Got: %s", graphFrame.from.Hex(), frame.From.Hex())
+		}
+
+		if !bytes.Equal(frame.To.Bytes(), graphFrame.to.Bytes()) {
+			t.Errorf("Bad 'TO'. Want: %s, Got: %s", graphFrame.from.Hex(), frame.From.Hex())
+		}
+
 		if graphFrame.id == "sync" {
-			_, err := syncABI.MethodById([]byte(frame.Input)[0:4])
+			method, err := syncABI.MethodById([]byte(frame.Input)[0:4])
 			if err != nil {
 				t.Errorf("Can't find method[sync] by sig[%#x]", []byte(frame.Input)[0:4])
+				continue
+			}
+
+			callInputs := map[string]interface{}{}
+			if err := method.Inputs.UnpackIntoMap(callInputs, []byte(frame.Input)[4:]); err != nil {
+				t.Errorf("Cant't decode tracing-api inputs for method[sync]: %s", err)
+				continue
+			}
+
+			graphInputs := map[string]interface{}{}
+			tmpGraphInputs := make([]struct {
+				Name  string `json:"name"`
+				Value string `json:"value"`
+			}, 0)
+			if err := json.Unmarshal([]byte(graphFrame.input), &tmpGraphInputs); err != nil {
+				t.Errorf("Cant't decode thegraph inputs for method[sync]: %s", err)
+				continue
+			}
+			for i := range tmpGraphInputs {
+				graphInputs[tmpGraphInputs[i].Name] = tmpGraphInputs[i].Value
+			}
+
+			cmp, err := compareKeyFromMapAsStr("key", callInputs, graphInputs)
+			if err != nil || cmp != 0 {
+				t.Errorf("Bad values in input args: [%#v][%#v]", callInputs["key"], graphInputs["key"])
+			}
+
+			callOutputs := map[string]interface{}{}
+			tmpCallOutputs := map[string]interface{}{}
+			if err := method.Outputs.UnpackIntoMap(tmpCallOutputs, []byte(frame.Output)); err != nil {
+				t.Errorf("Cant't decode tracing-api outputs for method[sync]: %s", err)
+				continue
+			}
+			for key := range tmpCallOutputs {
+				callOutputs[key] = fmt.Sprintf("%d", tmpCallOutputs[key])
+			}
+
+			graphOutputs := map[string]interface{}{}
+			tmpGraphOutputs := make([]struct {
+				Name  string `json:"name"`
+				Kind  string `json:"kind"`
+				Value string `json:"value"`
+			}, 0)
+			if err := json.Unmarshal([]byte(graphFrame.output), &tmpGraphOutputs); err != nil {
+				t.Errorf("Cant't decode thegraph inputs for method[sync]: %s", err)
+				continue
+			}
+			for i := range tmpGraphOutputs {
+				graphOutputs[tmpGraphOutputs[i].Name] = tmpGraphOutputs[i].Value
+			}
+
+			if cmp, err := compareKeyFromMapAsStr("", callOutputs, graphOutputs); err != nil || cmp != 0 {
+				t.Errorf("Bad values in output args: [%#v][%#v] %v", callOutputs[""], graphOutputs[""], err)
 			}
 		}
 		if graphFrame.id == "set" {
-			_, err := storABI.MethodById([]byte(frame.Input)[0:4])
+			method, err := storABI.MethodById([]byte(frame.Input)[0:4])
 			if err != nil {
 				t.Errorf("Can't find method[set] by sig[%#x]", []byte(frame.Input)[0:4])
 			}
+
+			callInputs := map[string]interface{}{}
+			tmpCallInputs := map[string]interface{}{}
+			if err := method.Inputs.UnpackIntoMap(tmpCallInputs, []byte(frame.Input)[4:]); err != nil {
+				t.Errorf("Cant't decode tracing-api inputs for method[sync]: %s", err)
+				continue
+			}
+			for key := range tmpCallInputs {
+				callInputs[key] = fmt.Sprintf("%v", tmpCallInputs[key])
+			}
+
+			graphInputs := map[string]interface{}{}
+			tmpGraphInputs := make([]struct {
+				Name  string `json:"name"`
+				Value string `json:"value"`
+			}, 0)
+			if err := json.Unmarshal([]byte(graphFrame.input), &tmpGraphInputs); err != nil {
+				t.Errorf("Cant't decode thegraph inputs for method[set]: %s", graphFrame.input)
+				continue
+			}
+			for i := range tmpGraphInputs {
+				graphInputs[tmpGraphInputs[i].Name] = tmpGraphInputs[i].Value
+			}
+
+			if cmp, err := compareKeyFromMapAsStr("key", callInputs, graphInputs); err != nil || cmp != 0 {
+				t.Errorf("Bad values in input args: [%#v][%#v] %v", callInputs["key"], graphInputs["key"], err)
+			}
+
+			if cmp, err := compareKeyFromMapAsStr("_value", callInputs, graphInputs); err != nil || cmp != 0 {
+				t.Errorf("Bad values in input args: [%#v][%#v] %v", callInputs["key"], graphInputs["key"], err)
+			}
 		}
 	}
-
-	t.Logf("hash: %s", hash)
-	t.Log("-------------------")
-	t.Logf("Tracing: %+v", calls)
-	t.Log("-------------------")
-	t.Logf("DGraph: %+v", graphFrames)
 }
