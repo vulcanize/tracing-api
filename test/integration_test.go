@@ -160,6 +160,8 @@ func TestMain(t *testing.T) {
 		return
 	}
 
+	fmt.Printf("Genetated eth tx %s\n", hash)
+
 	time.Sleep(2 * time.Second)
 
 	calls, err := callTracingAPI("http://127.0.0.1:8083", hash)

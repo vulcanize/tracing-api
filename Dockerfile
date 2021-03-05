@@ -18,6 +18,8 @@ RUN GCO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflag
 # app container
 FROM alpine
 
+RUN apk --update --no-cache add postgresql-client
+
 WORKDIR /app
 
 # keep binaries immutable

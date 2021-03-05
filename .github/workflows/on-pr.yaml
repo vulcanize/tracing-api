@@ -26,19 +26,18 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go-version }}
-      - uses: actions/setup-node@v2
-        with:
-          node-version: '14'
+#      - uses: actions/setup-node@v2
+#        with:
+#          node-version: '14'
       - uses: actions/checkout@v2
       - name: Run services
         run: cd test/enviroment && docker-compose pull && docker-compose up -d
+      - name: Checking running containers
+        run: |
+          sleep 10 && \
+          cd test/enviroment && \
+          docker-compose ps -a
       - name: Test
         run: |
-          while [ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:8545)" != "200" ]; do echo "waiting..." && sleep 5; done && \
-          cd test/enviroment/contracts && \
-          npm i && \
-          npm run deploy-contract && \
-          npm run codegen && \
-          npm run build  && \
-          npx run create && \
-          npx run deploy
+          cd test && \
+          go test -v .
