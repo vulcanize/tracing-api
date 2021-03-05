@@ -39,18 +39,7 @@ func (api *DebugAPI) TxTraceGraph(ctx context.Context, hash common.Hash) (*cache
 		return nil, err
 	}
 
-	// ToDo: config should be loaded from settings data
-	chaincfg := *api.backend.Config.ChainConfig
-	chaincfg.HomesteadBlock = big.NewInt(0)
-	chaincfg.EIP150Block = big.NewInt(0)
-	chaincfg.EIP150Hash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
-	chaincfg.EIP155Block = big.NewInt(0)
-	chaincfg.EIP158Block = big.NewInt(0)
-	chaincfg.ByzantiumBlock = big.NewInt(0)
-	chaincfg.ConstantinopleBlock = big.NewInt(0)
-	chaincfg.PetersburgBlock = big.NewInt(0)
-	chaincfg.IstanbulBlock = big.NewInt(0)
-	signer := types.MakeSigner(&chaincfg, big.NewInt(int64(blockNum)))
+	signer := types.MakeSigner(api.backend.Config.ChainConfig, big.NewInt(int64(blockNum)))
 
 	block, err := api.backend.BlockByNumber(ctx, rpc.BlockNumber(blockNum))
 	if err != nil {
@@ -85,7 +74,7 @@ func (api *DebugAPI) TxTraceGraph(ctx context.Context, hash common.Hash) (*cache
 	cfg.Debug = true
 	cfg.Tracer = callTracer
 
-	evm := vm.NewEVM(vmctx, txContext, statedb, &chaincfg, cfg)
+	evm := vm.NewEVM(vmctx, txContext, statedb, api.backend.Config.ChainConfig, cfg)
 	_, err = core.ApplyMessage(evm, msg, new(core.GasPool).AddGas(math.MaxUint64))
 	if err != nil {
 		return nil, err
