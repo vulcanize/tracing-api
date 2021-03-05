@@ -16,8 +16,15 @@ function toStr(value: ethereum.Value): string {
 
 function stringify(params: ethereum.EventParam[]): string {
   return '[' + params.reduce<string>(function (str, prm, i, prms) {
-    let last = params.length - 1;
-    return str + '{' + '"name":' + '"' + prm.name + '",' + '"kind":' + '"' + prm.value.kind.toString() + '",' + '"value":' + '"' + toStr(prm.value) + '"' + '}'
+    let last = prms.length - 1;
+    let start = '{';
+    let name = '"name":' + '"' + prm.name + '",';
+    let value = '"value":' + '"' + toStr(prm.value) + '"';
+    let end = '}'
+    if (i < last) {
+      end += ','
+    }
+    return str + start + name + value + end;
   }, '') + ']';
 }
 
