@@ -39,7 +39,18 @@ func (api *DebugAPI) TxTraceGraph(ctx context.Context, hash common.Hash) (*cache
 		return nil, err
 	}
 
-	signer := types.MakeSigner(api.backend.Config.ChainConfig, big.NewInt(int64(blockNum)))
+	// ToDo: config should be loaded from settings data
+	chaincfg := *api.backend.Config.ChainConfig
+	chaincfg.HomesteadBlock = big.NewInt(0)
+	chaincfg.EIP150Block = big.NewInt(0)
+	chaincfg.EIP150Hash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+	chaincfg.EIP155Block = big.NewInt(0)
+	chaincfg.EIP158Block = big.NewInt(0)
+	chaincfg.ByzantiumBlock = big.NewInt(0)
+	chaincfg.ConstantinopleBlock = big.NewInt(0)
+	chaincfg.PetersburgBlock = big.NewInt(0)
+	chaincfg.IstanbulBlock = big.NewInt(0)
+	signer := types.MakeSigner(&chaincfg, big.NewInt(int64(blockNum)))
 
 	block, err := api.backend.BlockByNumber(ctx, rpc.BlockNumber(blockNum))
 	if err != nil {
@@ -69,22 +80,36 @@ func (api *DebugAPI) TxTraceGraph(ctx context.Context, hash common.Hash) (*cache
 	vmctx := core.NewEVMBlockContext(block.Header(), api.backend, nil)
 	txContext := core.NewEVMTxContext(msg)
 
-	tracer := tracer.NewCallTracer()
+	callTracer := tracer.NewCallTracer()
 	cfg := api.backend.Config.VmConfig
 	cfg.Debug = true
-	cfg.Tracer = tracer
+	cfg.Tracer = callTracer
 
-	evm := vm.NewEVM(vmctx, txContext, statedb, api.backend.Config.ChainConfig, cfg)
+	evm := vm.NewEVM(vmctx, txContext, statedb, &chaincfg, cfg)
 	_, err = core.ApplyMessage(evm, msg, new(core.GasPool).AddGas(math.MaxUint64))
 	if err != nil {
 		return nil, err
 	}
 
+	msg, _ = tx.AsMessage(signer)
+	frames := []tracer.Frame{
+		{
+			Op:     vm.CALL,
+			From:   msg.From(),
+			To:     *msg.To(),
+			Input:  msg.Data(),
+			Output: callTracer.Output(),
+			Gas:    msg.Gas(),
+			Cost:   msg.Gas(),
+			Value:  msg.Value(),
+		},
+	}
+	callFrames := callTracer.Frames()
 	return &cache.TxTraceGraph{
 		TxHash:      hash,
 		TxIndex:     txIndex,
 		BlockHash:   block.Hash(),
 		BlockNumber: blockNum,
-		Frames:      tracer.Frames(),
+		Frames:      append(frames, callFrames...),
 	}, nil
 }

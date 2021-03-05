@@ -23,7 +23,7 @@ module.exports = {
           runs: 1
         }
       },
-      version: "node_modules/solc"
+      //version: "node_modules/solc"
     }
   }
 };
