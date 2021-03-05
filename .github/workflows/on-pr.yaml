@@ -31,9 +31,10 @@ jobs:
           node-version: '14'
       - uses: actions/checkout@v2
       - name: Run services
-        run: cd test/enviroment && docker-compose up -d
+        run: cd test/enviroment && docker-compose pull && docker-compose up -d
       - name: Test
         run: |
+          sleep 60 && \
           cd test/enviroment/contracts && \
           npm i && \
           npm run deploy-contract && \
