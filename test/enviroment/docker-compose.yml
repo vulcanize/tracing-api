@@ -106,11 +106,13 @@ services:
       - tracingdb
     build:
       context: ../../
+      dockerfile: ./test/enviroment/tracing-api/Dockerfile
       cache_from:
        - alpine:latest
        - golang:1.13-alpine
     environment:
       VDB_COMMAND: "serve"
+      ETH_CHAIN_CONFIG: "chain.json"
       DATABASE_HOSTNAME: vulcanizedb
       DATABASE_PORT: 5432
       DATABASE_NAME: vulcanize
