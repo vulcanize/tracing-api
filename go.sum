@@ -1016,12 +1016,16 @@ github.com/vulcanize/ipld-eth-indexer v0.6.0-alpha h1:CNZfwHokF3tcYKCsWKoyRqmyDh
 github.com/vulcanize/ipld-eth-indexer v0.6.0-alpha/go.mod h1:6eYAh+NiZyfpexdhLm9ZMCPspvJd0IE5k8+lGoaZtUQ=
 github.com/vulcanize/ipld-eth-indexer v0.7.0-alpha h1:VuvKC2qLajohczJX74lwBrpr/X8ZNSyC23jIdN5Ppxg=
 github.com/vulcanize/ipld-eth-indexer v0.7.0-alpha/go.mod h1:LYN2c28N9ceDf66tppc+TpaLqs4UcUlLTvUvg3Awccc=
+github.com/vulcanize/ipld-eth-indexer v0.7.1-alpha h1:By8Yyt8IjneVhL+xne/V6VLumKcUx06iE5Kq2rFphzA=
+github.com/vulcanize/ipld-eth-indexer v0.7.1-alpha/go.mod h1:LYN2c28N9ceDf66tppc+TpaLqs4UcUlLTvUvg3Awccc=
 github.com/vulcanize/ipld-eth-server v0.0.13 h1:j1Wmjsg/ft2y/DfrTzJGWLWJOXf+3r1ncVZ/fKKPcME=
 github.com/vulcanize/ipld-eth-server v0.0.13/go.mod h1:oWiuT8d0J5JN1bjtW3EraTjxSsL6+lfayNvIsRHsMxA=
 github.com/vulcanize/ipld-eth-server v0.2.0-alpha h1:hFayueAIAx+/Ot2Sz6aJWa1iZzVBX9v+jFhfIEoenSE=
 github.com/vulcanize/ipld-eth-server v0.2.0-alpha/go.mod h1:zR5WUTxFWjAd37EqJ0kCVnCS8faeARhRaI0itTbRxIc=
 github.com/vulcanize/ipld-eth-server v0.3.0-alpha h1:joemPiAEZxNGdpqYeYOQbtnOJaEWnIusq16wx8GkPRQ=
 github.com/vulcanize/ipld-eth-server v0.3.0-alpha/go.mod h1:cSPKqcLx00klE8ZQC9ZF443qLD5FWhu+Ih9E8Yyrdvc=
+github.com/vulcanize/ipld-eth-server v0.3.2-alpha h1:FRmWRHrZgq+izg50Or13B2U3tN2HsONHTxjjPFmcQuc=
+github.com/vulcanize/ipld-eth-server v0.3.2-alpha/go.mod h1:AHcHkeLVGArh6g76Zh/te1rGRKOhOXnAW4aL4aQ1zdA=
 github.com/vulcanize/pg-ipfs-ethdb v0.0.1-alpha h1:Y7j0Hw1jgVVOg+eUGUr7OgH+gOBID0DwbsfZV1KoL7I=
 github.com/vulcanize/pg-ipfs-ethdb v0.0.1-alpha/go.mod h1:OuqE4r2LGWAtDVx3s1yaAzDcwy+LEAqrWaE1L8UfrGY=
 github.com/vulcanize/pg-ipfs-ethdb v0.0.2-alpha h1:wvhpjrRuxjudAael5zhNwGymce/ggvOhHo1q9VJ0NjU=

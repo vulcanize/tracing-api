@@ -1,0 +1,52 @@
+version: '3.3'
+
+services:
+  vulcanizedb:
+    build:
+      context: ./ssh
+    volumes:
+      - /tmp/a:/root/ssh:ro
+    environment:
+      TUNNEL_HOST: mainnet-db
+      REMOTE_HOST: 127.0.0.1
+      LOCAL_PORT: 5432
+      REMOTE_PORT: 5432
+  tracingdb:
+    restart: always
+    image: postgres:12.6
+    environment:
+      POSTGRES_DB: "tracing"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "pwd"
+    command: ["postgres", "-cshared_preload_libraries=pg_stat_statements"]
+    ports:
+      - "127.0.0.1:5433:5432"
+  tracing-api:
+    depends_on:
+      - vulcanizedb
+      - tracingdb
+    build:
+      context: ../../
+      cache_from:
+       - alpine:latest
+       - golang:1.13-alpine
+    environment:
+      VDB_COMMAND: "serve"
+      DATABASE_HOSTNAME: vulcanizedb
+      DATABASE_PORT: 5432
+      DATABASE_NAME: vulcanize
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: pwd      
+      CACHE_DATABASE_HOSTNAME: tracingdb
+      CACHE_DATABASE_PORT: 5432
+      CACHE_DATABASE_NAME: tracing
+      CACHE_DATABASE_USER: postgres
+      CACHE_DATABASE_PASSWORD: pwd
+      SERVER_HTTP_PATH: "0.0.0.0:8083"
+      ETH_HTTP_PATH: "geth:8545"
+      ETH_WS_PATH: "geth:8546"
+      ETH_CHAIN_ID: 1
+      ETH_NETWORK_ID: 1
+      ETH_GENESIS_BLOCK: "0xa1569030790a6ca195d69a98217028ebcb2a3cde096407e189cf35d3c91f26ef"
+    ports:
+     - "127.0.0.1:8083:8083"

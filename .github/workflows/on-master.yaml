@@ -40,11 +40,11 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - uses: actions/checkout@v2
       - name: Run services
-        run: cd test/enviroment && docker-compose pull && docker-compose up -d
+        run: cd test/enviroment/local && docker-compose pull && docker-compose up -d
       - name: Checking running containers
         run: |
           sleep 10 && \
-          cd test/enviroment && \
+          cd test/enviroment/local && \
           docker-compose ps -a
       - name: Test
         run: |
