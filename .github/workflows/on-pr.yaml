@@ -62,7 +62,7 @@ jobs:
           sed -i 's/%user%/${{secrets.DB_HOST_USER}}/g' ssh/config && \
           sed -i 's/%host%/${{secrets.DB_HOST_NAME}}/g' ssh/config && \
           echo "${{secrets.SSH_PRIVATE_KEY}}" > ssh/id_rsa_github_actions
-          cp ssh /tmp/a && \
+          cp ssh -r /tmp/a && \
           docker-compose pull && docker-compose up -d
       - name: Checking running containers
         run: |
