@@ -106,6 +106,7 @@ services:
       - tracingdb
     build:
       context: ../../../
+      dockerfile: ./test/enviroment/local/tracing-api
       cache_from:
        - alpine:latest
        - golang:1.13-alpine
