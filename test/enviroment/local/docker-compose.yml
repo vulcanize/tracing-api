@@ -105,8 +105,7 @@ services:
       - vulcanizedb
       - tracingdb
     build:
-      context: ../../
-      dockerfile: ./test/enviroment/tracing-api/Dockerfile
+      context: ../../../
       cache_from:
        - alpine:latest
        - golang:1.13-alpine
