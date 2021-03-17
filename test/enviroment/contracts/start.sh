@@ -1,5 +1,5 @@
 #!/bin/bash
-sleep 2
+sleep 120
 cd /usr/src/app
 ./node_modules/.bin/truffle migrate --network development
 ./node_modules/.bin/graph codegen
