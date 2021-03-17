@@ -1,0 +1,44 @@
+specVersion: 0.0.2
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: BlockNumStorage
+    network: mainnet
+    source:
+      address: "0xf3f2a4e8F42db8afE4d60cB950720C3fBc559891"
+      abi: BlockNumStorage
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.4
+      language: wasm/assemblyscript
+      entities:
+        - Sync
+        - Frame
+      abis:
+        - name: BlockNumStorage
+          file: abis/BlockNumStorage.abi
+      callHandlers:
+        - function: sync(string)
+          handler: handleSync
+      file: src/mapping.ts
+  - kind: ethereum/contract
+    name: UintStorage
+    network: mainnet
+    source:
+      address: "0xD5AD01A3521a3633eA2D628F000BeF830CE80314"
+      abi: UintStorage
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.4
+      language: wasm/assemblyscript
+      entities:
+        - StorageSet
+        - Frame
+      abis:
+        - name: UintStorage
+          file: abis/UintStorage.abi
+      callHandlers:
+        - function: set(string,uint256)
+          handler: handleSet
+      file: src/mapping.ts

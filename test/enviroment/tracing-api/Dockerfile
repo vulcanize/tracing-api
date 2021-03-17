@@ -27,6 +27,7 @@ COPY --from=builder /go/src/github.com/vulcanize/tracing-api/build/tracer-linux 
 COPY --from=builder /go/src/github.com/pressly/goose/cmd/goose/goose /usr/local/bin/goose
 COPY --from=builder /go/src/github.com/vulcanize/tracing-api/startup_script.sh .
 COPY --from=builder /go/src/github.com/vulcanize/tracing-api/db/migrations migrations
+COPY --from=builder /go/src/github.com/vulcanize/tracing-api/test/enviroment/tracing-api/chain.json .
 
 EXPOSE 8080
 

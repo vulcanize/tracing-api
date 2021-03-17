@@ -1,0 +1,23 @@
+type Sync @entity {
+  id: ID!
+  key: String
+  value: BigInt
+}
+
+type StorageSet @entity {
+  id: ID!
+  key: String
+  value: BigInt
+}
+
+type Frame @entity {
+  id: ID!
+  index: BigInt
+  blockHash: Bytes
+  blockNumber: BigInt
+  from: Bytes
+  to: Bytes
+  input: String
+  output: String
+  hash: String
+}

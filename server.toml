@@ -1,0 +1,34 @@
+[cache]
+[cache.database]
+    name     = "tracing" # $DATABASE_NAME
+    hostname = "localhost" # $DATABASE_HOSTNAME
+    port     = 5433 # $DATABASE_PORT
+    user     = "postgres" # $DATABASE_USER
+    password = "pwd" # $DATABASE_PASSWORD
+
+[database]
+    name     = "vulcanize" # $DATABASE_NAME
+    hostname = "localhost" # $DATABASE_HOSTNAME
+    port     = 5432 # $DATABASE_PORT
+    user     = "postgres" # $DATABASE_USER
+    password = "pwd" # $DATABASE_PASSWORD
+
+[log]
+    level = "info" # $LOGRUS_LEVEL
+
+[server]
+    ipcPath = "/Users/n0cte/.vulcanize/vulcanize.ipc" # $SERVER_IPC_PATH
+    wsPath = "127.0.0.1:8091" # $SERVER_WS_PATH
+    httpPath = "127.0.0.1:8092" # $SERVER_HTTP_PATH
+    graphql = true # $SERVER_GRAPHQL
+    graphqlEndpoint = "" # $SERVER_GRAPHQL_ENDPOINT
+
+[ethereum]
+    chainID = "4" # $ETH_CHAIN_ID
+    defaultSender = "0x002df8650971e275726f7c7ba8562ccebd772299" # $ETH_DEFAULT_SENDER_ADDR
+    rpcGasCap = "8000000" # $ETH_RPC_GAS_CAP
+    httpPath = "127.0.0.1:8545" # $ETH_HTTP_PATH
+    nodeID = "arch1" # $ETH_NODE_ID
+    clientName = "Geth" # $ETH_CLIENT_NAME
+    genesisBlock = "0x2c05e4d0ac1a129f841ab1e1ffb7c59065cfca6898814bc1d89dac1af0345be6" # $ETH_GENESIS_BLOCK
+    networkID = "4" # $ETH_NETWORK_ID

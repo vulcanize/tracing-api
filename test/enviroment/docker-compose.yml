@@ -1,0 +1,147 @@
+version: '3.3'
+
+services:   
+  ipfs:
+    image: ipfs/go-ipfs:v0.4.23
+    ports:
+      - '5001:5001'
+  vulcanizedb:
+    restart: always
+    image: postgres:12.6
+    environment:
+      POSTGRES_DB: "vulcanize"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "pwd"
+    command: ["postgres", "-cshared_preload_libraries=pg_stat_statements"]
+    ports:
+      - "127.0.0.1:5432:5432"
+  tracingdb:
+    restart: always
+    image: postgres:12.6
+    environment:
+      POSTGRES_DB: "tracing"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "pwd"
+    command: ["postgres", "-cshared_preload_libraries=pg_stat_statements"]
+    ports:
+      - "127.0.0.1:5433:5432"
+  graphdb:
+    restart: always
+    image: postgres:12.6
+    environment:
+      POSTGRES_DB: "thegraph"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "pwd"
+    command: ["postgres", "-cshared_preload_libraries=pg_stat_statements"]
+    ports:
+      - "127.0.0.1:5434:5432"
+  geth:
+    restart: always
+    depends_on:
+      - vulcanizedb
+    build: 
+      context: ./geth
+      cache_from:
+       - alpine:latest
+       - golang:1.16-alpine
+    environment:
+      DATABASE_HOSTNAME: vulcanizedb
+      DATABASE_PORT: 5432
+      DATABASE_NAME: vulcanize
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: pwd
+    ports:
+      - "127.0.0.1:8545:8545"
+      - "127.0.0.1:8546:8546"
+      - "30303:30303"
+      - "30303:30303/udp"
+  openethereum:
+    restart: always
+    depends_on:
+      - geth
+    image: openethereum/openethereum:v3.1.1
+    volumes:
+      - ./geth/poanet-parity.json:/poanet-parity.json:ro
+    command:
+      --tracing on
+      --unsafe-expose
+      --interface "all"
+      --port "30304"
+      --chain "/poanet-parity.json"
+      --network-id "4"
+      --jsonrpc-interface="all"
+      --jsonrpc-hosts="all"
+      --jsonrpc-cors="all"
+      --jsonrpc-apis="all"
+      --bootnodes="enode://91d1db839daff216a50847d5c77c716806e2c7dd7d591af2ade944fc4f1d55ccbfda4aa92a8156d4f4e08ffa28425579e797834e219aa109a69a5daeba6d7f94@geth:30303"
+    ports:
+      - "127.0.0.1:8547:8545"
+      - "30304:30304"
+      - "30304:30304/udp"
+  graph:
+    restart: always
+    depends_on:
+      - geth
+      - ipfs
+      - openethereum
+      - graphdb
+    image: graphprotocol/graph-node:latest
+    environment:
+      postgres_host: graphdb
+      postgres_user: postgres
+      postgres_pass: pwd
+      postgres_db: thegraph
+      ipfs: 'ipfs:5001'
+      ethereum: 'mainnet:http://openethereum:8545'
+      RUST_LOG: error
+    ports:
+      - '8000:8000'
+      - '8001:8001'
+      - '8020:8020'
+      - '8030:8030'
+      - '8040:8040'
+  tracing-api:
+    depends_on:
+      - vulcanizedb
+      - tracingdb
+    build:
+      context: ../../
+      dockerfile: ./test/enviroment/tracing-api/Dockerfile
+      cache_from:
+       - alpine:latest
+       - golang:1.13-alpine
+    environment:
+      VDB_COMMAND: "serve"
+      ETH_CHAIN_CONFIG: "chain.json"
+      DATABASE_HOSTNAME: vulcanizedb
+      DATABASE_PORT: 5432
+      DATABASE_NAME: vulcanize
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: pwd      
+      CACHE_DATABASE_HOSTNAME: tracingdb
+      CACHE_DATABASE_PORT: 5432
+      CACHE_DATABASE_NAME: tracing
+      CACHE_DATABASE_USER: postgres
+      CACHE_DATABASE_PASSWORD: pwd
+      SERVER_HTTP_PATH: "0.0.0.0:8083"
+      ETH_HTTP_PATH: "geth:8545"
+      ETH_WS_PATH: "geth:8546"
+      ETH_CHAIN_ID: 4
+      ETH_NETWORK_ID: 4
+      ETH_GENESIS_BLOCK: "0x2c05e4d0ac1a129f841ab1e1ffb7c59065cfca6898814bc1d89dac1af0345be6"
+    ports:
+     - "127.0.0.1:8083:8083"
+  contracts:
+    depends_on:
+      - geth
+      - ipfs
+      - graph
+    build: 
+      context: ./contracts
+    environment:
+      CNT_ETH_HOST: geth
+      CNT_ETH_PORT: 8545
+      CNT_IPFS_URL: "http://ipfs:5001"
+      CNT_GRAPH_URL: "http://graph:8020/"
+    ports:
+      - "127.0.0.1:3000:3000"

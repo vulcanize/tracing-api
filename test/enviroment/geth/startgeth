@@ -1,0 +1,47 @@
+#!/bin/bash
+
+#!/bin/sh
+# Runs the db migrations and starts the watcher services
+
+# Exit if the variable tests fail
+set -e
+set +x
+
+# Check the database variables are set
+test $DATABASE_HOSTNAME
+test $DATABASE_NAME
+test $DATABASE_PORT
+test $DATABASE_USER
+test $DATABASE_PASSWORD
+set +e
+
+# Construct the connection string for postgres
+VDB_PG_CONNECT=postgresql://$DATABASE_USER:$DATABASE_PASSWORD@$DATABASE_HOSTNAME:$DATABASE_PORT/$DATABASE_NAME?sslmode=disable
+
+# Run the DB migrations
+echo "Connecting with: $VDB_PG_CONNECT"
+echo "Running database migrations"
+/go/bin/goose -dir /app/server/db/migrations postgres "$VDB_PG_CONNECT" up
+
+# If the db migrations ran without err
+if [[ $? -eq 0 ]]; then
+  echo "Running the geth process"
+  /app/ethereum/build/bin/geth --datadir "/app/datadir" \
+    --nodiscover --nodekeyhex "3132508130d9b967d1f15663c6d446e58afd5be122ab32c8e3b0c1ae9920f67e" \
+    --statediff --statediff.dbnodeid "1" --statediff.dbclientname "test1" --statediff.writing --statediff.db="host=$DATABASE_HOSTNAME port=$DATABASE_PORT user=$DATABASE_USER password=$DATABASE_PASSWORD dbname=$DATABASE_NAME sslmode=disable" \
+    --verbosity "3" --networkid "4" --nousb \
+    --allow-insecure-unlock --unlock "0x002df8650971e275726f7c7ba8562ccebd772299" --password "/app/pwd" --mine --miner.threads "1" --miner.etherbase "0x002df8650971e275726f7c7ba8562ccebd772299" \
+    --http --http.addr "0.0.0.0" --http.port "8545" --http.corsdomain "*" --http.api "admin,debug,eth,miner,net,personal,txpool,web3,statediff" --http.vhosts "*" \
+    --ws --ws.addr "0.0.0.0" --ws.port "8546" --ws.origins "*" --ws.api "admin,debug,eth,miner,net,personal,txpool,web3,statediff"
+else
+    echo "Could not run migrations. Are the database details correct?"
+    exit 1
+fi
+
+# If VulcanizeDB process was successful
+if [ $? -eq 0 ]; then
+    echo "geth process ran successfully"
+else
+    echo "Could not start geth process. Is the config file correct?"
+    exit 1
+fi
