@@ -39,5 +39,6 @@ jobs:
           docker-compose ps -a
       - name: Test
         run: |
+          while [ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:3000/v1/healthz)" != "200" ]; do echo "wait for contracts being deployed..." && sleep 5; done && \
           cd test && \
           go test -v .

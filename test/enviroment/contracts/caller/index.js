@@ -16,6 +16,13 @@ fastify.get('/', async (req, reply) => {
   return txs.map(({ transactionHash }) => transactionHash);
 })
 
+fastify.get('/v1/healthz', async (req, reply) => {
+  reply
+      .code(200)
+      .header('Content-Type', 'application/json; charset=utf-8')
+      .send({ success: true })
+})
+
 async function main() {
   try {
     await fastify.listen(3000, '0.0.0.0');
