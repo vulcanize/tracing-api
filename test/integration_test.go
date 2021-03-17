@@ -184,6 +184,16 @@ func TestMain(t *testing.T) {
 	t.Logf("TheGraph: %+v", graphFrames)
 	t.Log("--------------------------------------")
 
+	if len(calls.Frames) == 0 {
+		t.Error("tracing-api frames are empty")
+		return
+	}
+
+	if len(graphFrames) == 0 {
+		t.Error("thegraph frames are empty")
+		return
+	}
+
 	if len(calls.Frames) < len(graphFrames) && false {
 		t.Errorf("tracing-api callstack (%d) less then callstack from thegraph (%d)", len(calls.Frames), len(graphFrames))
 		return
