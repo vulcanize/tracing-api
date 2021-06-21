@@ -1,0 +1,4 @@
+Host mainnet-db
+    HostName %host%
+    IdentityFile ~/.ssh/id_rsa_github_actions
+    User %user%

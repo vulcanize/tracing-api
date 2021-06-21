@@ -6,7 +6,7 @@ dataSources:
     name: BlockNumStorage
     network: mainnet
     source:
-      address: "0xf3f2a4e8F42db8afE4d60cB950720C3fBc559891"
+      address: "0x51900544dfef84a65f6dbe0c999f88ebe87ba2dd"
       abi: BlockNumStorage
     mapping:
       kind: ethereum/events
@@ -26,7 +26,7 @@ dataSources:
     name: UintStorage
     network: mainnet
     source:
-      address: "0xD5AD01A3521a3633eA2D628F000BeF830CE80314"
+      address: "0xddfe1a03bab27687f49f1864c98ceaf8a26caf2f"
       abi: UintStorage
     mapping:
       kind: ethereum/events
