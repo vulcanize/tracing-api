@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
@@ -153,190 +154,238 @@ func getGraphFrames(hash string) ([]frame, error) {
 	return data, nil
 }
 
+func testTxTraceGraph(hash string) func(t *testing.T) {
+	return func(t *testing.T) {
+		calls, err := callTracingAPI("http://127.0.0.1:8083", hash)
+		if err != nil {
+			t.Fatal(err)
+			return
+		}
+
+		graphFrames, err := getGraphFrames(hash)
+		if err != nil {
+			t.Fatal(err)
+			return
+		}
+
+		t.Log("--------------------------------------")
+		t.Logf("hash: %s", hash)
+		t.Log("--------------------------------------")
+		t.Logf("TracingAPI: %+v", calls)
+		t.Log("--------------------------------------")
+		t.Logf("TheGraph: %+v", graphFrames)
+		t.Log("--------------------------------------")
+
+		if len(calls.Frames) == 0 {
+			t.Error("tracing-api frames are empty")
+			return
+		}
+
+		if len(graphFrames) == 0 {
+			t.Error("thegraph frames are empty")
+			return
+		}
+
+		if len(calls.Frames) < len(graphFrames) && false {
+			t.Errorf("tracing-api callstack (%d) less then callstack from thegraph (%d)", len(calls.Frames), len(graphFrames))
+			return
+		}
+
+		name2sig := map[string]string{
+			"sync": "0xfd620be1",
+			"set":  "0x8a42ebe9",
+		}
+
+		sig2frame := map[string]tracer.Frame{}
+		for _, frame := range calls.Frames {
+			sig := fmt.Sprintf("%#x", []byte(frame.Input)[0:4])
+			sig2frame[sig] = frame
+		}
+
+		for _, graphFrame := range graphFrames {
+			sig, exist := name2sig[graphFrame.id]
+			if !exist {
+				t.Fatalf("Method [%s] doesn't exist", graphFrame.id)
+			}
+			frame, exist := sig2frame[sig]
+			if !exist {
+				t.Fatalf("Method [%s] doesn't exist in frame map", graphFrame.id)
+			}
+
+			t.Log("Compare frames")
+			t.Logf("TracingAPI frame: %+v", frame)
+			t.Logf("TheGraph frame: %+v", graphFrame)
+
+			t.Logf("  Compare 'from': TheGraph[%s], TracingAPI[%s]", graphFrame.from.Hex(), frame.From.Hex())
+			if !bytes.Equal(graphFrame.from.Bytes(), frame.From.Bytes()) {
+				t.Fatalf("Bad 'FROM'. Want: %s, Got: %s", graphFrame.from.Hex(), frame.From.Hex())
+			}
+
+			t.Logf("  Compare 'to': TheGraph[%s], TracingAPI[%s]", graphFrame.to.Hex(), frame.To.Hex())
+			if !bytes.Equal(frame.To.Bytes(), graphFrame.to.Bytes()) {
+				t.Fatalf("Bad 'TO'. Want: %s, Got: %s", graphFrame.to.Hex(), frame.To.Hex())
+			}
+
+			if graphFrame.id == "sync" {
+				method, err := syncABI.MethodById([]byte(frame.Input)[0:4])
+				if err != nil {
+					t.Errorf("Can't find method[sync] by sig[%#x]", []byte(frame.Input)[0:4])
+					continue
+				}
+
+				callInputs := map[string]interface{}{}
+				if err := method.Inputs.UnpackIntoMap(callInputs, []byte(frame.Input)[4:]); err != nil {
+					t.Errorf("Cant't decode tracing-api inputs for method[sync]: %s", err)
+					continue
+				}
+
+				graphInputs := map[string]interface{}{}
+				tmpGraphInputs := make([]struct {
+					Name  string `json:"name"`
+					Value string `json:"value"`
+				}, 0)
+				if err := json.Unmarshal([]byte(graphFrame.input), &tmpGraphInputs); err != nil {
+					t.Errorf("Cant't decode thegraph inputs for method[sync]: %s", err)
+					continue
+				}
+				for i := range tmpGraphInputs {
+					graphInputs[tmpGraphInputs[i].Name] = tmpGraphInputs[i].Value
+				}
+
+				t.Logf("  Compare inputs: TheGraph[%+v], TracingAPI[%+v]", graphInputs, callInputs)
+				cmp, err := compareKeyFromMapAsStr("key", callInputs, graphInputs)
+				if err != nil || cmp != 0 {
+					t.Errorf("Bad values in input args: [%#v][%#v]", callInputs["key"], graphInputs["key"])
+				}
+
+				callOutputs := map[string]interface{}{}
+				tmpCallOutputs := map[string]interface{}{}
+				if err := method.Outputs.UnpackIntoMap(tmpCallOutputs, []byte(frame.Output)); err != nil {
+					t.Errorf("Cant't decode tracing-api outputs for method[sync]: %s", err)
+					continue
+				}
+				for key := range tmpCallOutputs {
+					callOutputs[key] = fmt.Sprintf("%d", tmpCallOutputs[key])
+				}
+
+				graphOutputs := map[string]interface{}{}
+				tmpGraphOutputs := make([]struct {
+					Name  string `json:"name"`
+					Kind  string `json:"kind"`
+					Value string `json:"value"`
+				}, 0)
+				if err := json.Unmarshal([]byte(graphFrame.output), &tmpGraphOutputs); err != nil {
+					t.Errorf("Cant't decode thegraph inputs for method[sync]: %s", err)
+					continue
+				}
+				for i := range tmpGraphOutputs {
+					graphOutputs[tmpGraphOutputs[i].Name] = tmpGraphOutputs[i].Value
+				}
+
+				t.Logf("  Compare outputs: TheGraph[%+v], TracingAPI[%+v]", graphOutputs, callOutputs)
+				if cmp, err := compareKeyFromMapAsStr("", callOutputs, graphOutputs); err != nil || cmp != 0 {
+					t.Errorf("Bad values in output args: [%#v][%#v] %v", callOutputs[""], graphOutputs[""], err)
+				}
+			}
+			if graphFrame.id == "set" {
+				method, err := storABI.MethodById([]byte(frame.Input)[0:4])
+				if err != nil {
+					t.Errorf("Can't find method[set] by sig[%#x]", []byte(frame.Input)[0:4])
+				}
+
+				callInputs := map[string]interface{}{}
+				tmpCallInputs := map[string]interface{}{}
+				if err := method.Inputs.UnpackIntoMap(tmpCallInputs, []byte(frame.Input)[4:]); err != nil {
+					t.Errorf("Cant't decode tracing-api inputs for method[sync]: %s", err)
+					continue
+				}
+				for key := range tmpCallInputs {
+					callInputs[key] = fmt.Sprintf("%v", tmpCallInputs[key])
+				}
+
+				graphInputs := map[string]interface{}{}
+				tmpGraphInputs := make([]struct {
+					Name  string `json:"name"`
+					Value string `json:"value"`
+				}, 0)
+				if err := json.Unmarshal([]byte(graphFrame.input), &tmpGraphInputs); err != nil {
+					t.Errorf("Cant't decode thegraph inputs for method[set]: %s", graphFrame.input)
+					continue
+				}
+				for i := range tmpGraphInputs {
+					graphInputs[tmpGraphInputs[i].Name] = tmpGraphInputs[i].Value
+				}
+
+				t.Logf("  Compare inputs: TheGraph[%+v], TracingAPI[%+v]", graphInputs, callInputs)
+				if cmp, err := compareKeyFromMapAsStr("key", callInputs, graphInputs); err != nil || cmp != 0 {
+					t.Errorf("Bad values in input args: [%#v][%#v] %v", callInputs["key"], graphInputs["key"], err)
+				}
+
+				if cmp, err := compareKeyFromMapAsStr("_value", callInputs, graphInputs); err != nil || cmp != 0 {
+					t.Errorf("Bad values in input args: [%#v][%#v] %v", callInputs["key"], graphInputs["key"], err)
+				}
+			}
+			t.Log("--------------------------------------")
+		}
+	}
+}
+
+func testTraceTransaction(hash string) func(t *testing.T) {
+	return func(t *testing.T) {
+		requestBody := fmt.Sprintf(
+			`{
+				"jsonrpc": "2.0",
+				"id": 0,
+				"method": "debug_traceTransaction",
+				"params": ["%s"]
+			}`,
+			hash,
+		)
+
+		t.Logf("call tracing-api debug_traceTransaction")
+		tracingApiRes, err := http.Post("http://127.0.0.1:8083", "application/json", strings.NewReader(requestBody))
+		if err != nil {
+			t.Fatalf("  error: %s", err)
+		}
+		defer tracingApiRes.Body.Close()
+
+		t.Logf("  read data")
+		rawTracingApiData, err := ioutil.ReadAll(tracingApiRes.Body)
+		if err != nil {
+			t.Fatalf("    error: %s", err)
+		}
+		t.Logf("    done")
+
+		t.Logf("call geth debug_traceTransaction")
+		gethRes, err := http.Post("http://127.0.0.1:8545", "application/json", strings.NewReader(requestBody))
+		if err != nil {
+			t.Fatalf("  error: %s", err)
+		}
+		defer gethRes.Body.Close()
+
+		t.Logf("  read data")
+		rawGethData, err := ioutil.ReadAll(gethRes.Body)
+		if err != nil {
+			t.Fatalf("    error: %s", err)
+		}
+		t.Logf("    done")
+
+		if !bytes.Equal(rawTracingApiData, rawGethData) {
+			t.Error("bad tracing api data")
+		}
+	}
+}
+
 func TestMain(t *testing.T) {
+	t.Log("Generate transaction")
 	hash, err := callTx("http://127.0.0.1:3000")
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatalf("  error: %s", err)
 	}
-
-	fmt.Printf("Genetated eth tx %s\n", hash)
+	t.Logf("  hash: %s", hash)
 
 	time.Sleep(2 * time.Second)
 
-	calls, err := callTracingAPI("http://127.0.0.1:8083", hash)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	graphFrames, err := getGraphFrames(hash)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	t.Log("--------------------------------------")
-	t.Logf("hash: %s", hash)
-	t.Log("--------------------------------------")
-	t.Logf("TracingAPI: %+v", calls)
-	t.Log("--------------------------------------")
-	t.Logf("TheGraph: %+v", graphFrames)
-	t.Log("--------------------------------------")
-
-	if len(calls.Frames) == 0 {
-		t.Error("tracing-api frames are empty")
-		return
-	}
-
-	if len(graphFrames) == 0 {
-		t.Error("thegraph frames are empty")
-		return
-	}
-
-	if len(calls.Frames) < len(graphFrames) && false {
-		t.Errorf("tracing-api callstack (%d) less then callstack from thegraph (%d)", len(calls.Frames), len(graphFrames))
-		return
-	}
-
-	name2sig := map[string]string{
-		"sync": "0xfd620be1",
-		"set":  "0x8a42ebe9",
-	}
-
-	sig2frame := map[string]tracer.Frame{}
-	for _, frame := range calls.Frames {
-		sig := fmt.Sprintf("%#x", []byte(frame.Input)[0:4])
-		sig2frame[sig] = frame
-	}
-
-	for _, graphFrame := range graphFrames {
-		sig, exist := name2sig[graphFrame.id]
-		if !exist {
-			t.Errorf("Method [%s] doesn't exist", graphFrame.id)
-			return
-		}
-		frame, exist := sig2frame[sig]
-		if !exist {
-			t.Errorf("Method [%s] doesn't exist in frame map", graphFrame.id)
-			return
-		}
-
-		t.Log("Compare frames")
-		t.Logf("TracingAPI frame: %+v", frame)
-		t.Logf("TheGraph frame: %+v", graphFrame)
-
-		t.Logf("  Compare 'from': TheGraph[%s], TracingAPI[%s]", graphFrame.from.Hex(), frame.From.Hex())
-		if !bytes.Equal(graphFrame.from.Bytes(), frame.From.Bytes()) {
-			t.Errorf("Bad 'FROM'. Want: %s, Got: %s", graphFrame.from.Hex(), frame.From.Hex())
-			return
-		}
-
-		t.Logf("  Compare 'to': TheGraph[%s], TracingAPI[%s]", graphFrame.to.Hex(), frame.To.Hex())
-		if !bytes.Equal(frame.To.Bytes(), graphFrame.to.Bytes()) {
-			t.Errorf("Bad 'TO'. Want: %s, Got: %s", graphFrame.to.Hex(), frame.To.Hex())
-			return
-		}
-
-		if graphFrame.id == "sync" {
-			method, err := syncABI.MethodById([]byte(frame.Input)[0:4])
-			if err != nil {
-				t.Errorf("Can't find method[sync] by sig[%#x]", []byte(frame.Input)[0:4])
-				continue
-			}
-
-			callInputs := map[string]interface{}{}
-			if err := method.Inputs.UnpackIntoMap(callInputs, []byte(frame.Input)[4:]); err != nil {
-				t.Errorf("Cant't decode tracing-api inputs for method[sync]: %s", err)
-				continue
-			}
-
-			graphInputs := map[string]interface{}{}
-			tmpGraphInputs := make([]struct {
-				Name  string `json:"name"`
-				Value string `json:"value"`
-			}, 0)
-			if err := json.Unmarshal([]byte(graphFrame.input), &tmpGraphInputs); err != nil {
-				t.Errorf("Cant't decode thegraph inputs for method[sync]: %s", err)
-				continue
-			}
-			for i := range tmpGraphInputs {
-				graphInputs[tmpGraphInputs[i].Name] = tmpGraphInputs[i].Value
-			}
-
-			t.Logf("  Compare inputs: TheGraph[%+v], TracingAPI[%+v]", graphInputs, callInputs)
-			cmp, err := compareKeyFromMapAsStr("key", callInputs, graphInputs)
-			if err != nil || cmp != 0 {
-				t.Errorf("Bad values in input args: [%#v][%#v]", callInputs["key"], graphInputs["key"])
-			}
-
-			callOutputs := map[string]interface{}{}
-			tmpCallOutputs := map[string]interface{}{}
-			if err := method.Outputs.UnpackIntoMap(tmpCallOutputs, []byte(frame.Output)); err != nil {
-				t.Errorf("Cant't decode tracing-api outputs for method[sync]: %s", err)
-				continue
-			}
-			for key := range tmpCallOutputs {
-				callOutputs[key] = fmt.Sprintf("%d", tmpCallOutputs[key])
-			}
-
-			graphOutputs := map[string]interface{}{}
-			tmpGraphOutputs := make([]struct {
-				Name  string `json:"name"`
-				Kind  string `json:"kind"`
-				Value string `json:"value"`
-			}, 0)
-			if err := json.Unmarshal([]byte(graphFrame.output), &tmpGraphOutputs); err != nil {
-				t.Errorf("Cant't decode thegraph inputs for method[sync]: %s", err)
-				continue
-			}
-			for i := range tmpGraphOutputs {
-				graphOutputs[tmpGraphOutputs[i].Name] = tmpGraphOutputs[i].Value
-			}
-
-			t.Logf("  Compare outputs: TheGraph[%+v], TracingAPI[%+v]", graphOutputs, callOutputs)
-			if cmp, err := compareKeyFromMapAsStr("", callOutputs, graphOutputs); err != nil || cmp != 0 {
-				t.Errorf("Bad values in output args: [%#v][%#v] %v", callOutputs[""], graphOutputs[""], err)
-			}
-		}
-		if graphFrame.id == "set" {
-			method, err := storABI.MethodById([]byte(frame.Input)[0:4])
-			if err != nil {
-				t.Errorf("Can't find method[set] by sig[%#x]", []byte(frame.Input)[0:4])
-			}
-
-			callInputs := map[string]interface{}{}
-			tmpCallInputs := map[string]interface{}{}
-			if err := method.Inputs.UnpackIntoMap(tmpCallInputs, []byte(frame.Input)[4:]); err != nil {
-				t.Errorf("Cant't decode tracing-api inputs for method[sync]: %s", err)
-				continue
-			}
-			for key := range tmpCallInputs {
-				callInputs[key] = fmt.Sprintf("%v", tmpCallInputs[key])
-			}
-
-			graphInputs := map[string]interface{}{}
-			tmpGraphInputs := make([]struct {
-				Name  string `json:"name"`
-				Value string `json:"value"`
-			}, 0)
-			if err := json.Unmarshal([]byte(graphFrame.input), &tmpGraphInputs); err != nil {
-				t.Errorf("Cant't decode thegraph inputs for method[set]: %s", graphFrame.input)
-				continue
-			}
-			for i := range tmpGraphInputs {
-				graphInputs[tmpGraphInputs[i].Name] = tmpGraphInputs[i].Value
-			}
-
-			t.Logf("  Compare inputs: TheGraph[%+v], TracingAPI[%+v]", graphInputs, callInputs)
-			if cmp, err := compareKeyFromMapAsStr("key", callInputs, graphInputs); err != nil || cmp != 0 {
-				t.Errorf("Bad values in input args: [%#v][%#v] %v", callInputs["key"], graphInputs["key"], err)
-			}
-
-			if cmp, err := compareKeyFromMapAsStr("_value", callInputs, graphInputs); err != nil || cmp != 0 {
-				t.Errorf("Bad values in input args: [%#v][%#v] %v", callInputs["key"], graphInputs["key"], err)
-			}
-		}
-		t.Log("--------------------------------------")
-	}
+	t.Run("test TxTraceGraph", testTxTraceGraph(hash))
+	t.Run("test TraceTransaction", testTraceTransaction(hash))
 }
