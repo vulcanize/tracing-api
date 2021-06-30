@@ -2,27 +2,37 @@ package eth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/vulcanize/ipld-eth-server/pkg/eth"
+	ipldEth "github.com/vulcanize/ipld-eth-server/pkg/eth"
 	"github.com/vulcanize/tracing-api/pkg/cache"
 	"github.com/vulcanize/tracing-api/pkg/eth/tracer"
 )
 
+const (
+	// defaultTraceTimeout is the amount of time a single transaction can execute
+	// by default before being forcefully aborted.
+	defaultTraceTimeout = 5 * time.Second
+)
+
 type DebugAPI struct {
 	// Local db backend
-	backend *eth.Backend
+	backend *ipldEth.Backend
 	cache   *cache.Service
 }
 
-func NewDebugAPI(b *eth.Backend, cache *cache.Service) *DebugAPI {
+func NewDebugAPI(b *ipldEth.Backend, cache *cache.Service) *DebugAPI {
 	return &DebugAPI{b, cache}
 }
 
@@ -34,7 +44,7 @@ func (api *DebugAPI) WriteTxTraceGraph(ctx context.Context, hash common.Hash) (*
 	return nil, api.cache.SaveTxTraceGraph(data)
 }
 
-func (api *DebugAPI) prepareEvm(ctx context.Context, hash common.Hash, ttracer vm.Tracer) (*vm.EVM, *transaction, error) {
+func (api *DebugAPI) prepareEvm(ctx context.Context, hash common.Hash, tracer vm.Tracer) (*vm.EVM, *transaction, error) {
 	tx, _, blockNum, txIndex, err := api.backend.GetTransaction(ctx, hash)
 	if err != nil {
 		return nil, nil, err
@@ -76,7 +86,7 @@ func (api *DebugAPI) prepareEvm(ctx context.Context, hash common.Hash, ttracer v
 
 	cfg := api.backend.Config.VmConfig
 	cfg.Debug = true
-	cfg.Tracer = ttracer
+	cfg.Tracer = tracer
 
 	evm := vm.NewEVM(vmctx, txContext, statedb, api.backend.Config.ChainConfig, cfg)
 	internalTx := transaction{
@@ -123,35 +133,68 @@ func (api *DebugAPI) TxTraceGraph(ctx context.Context, hash common.Hash) (*cache
 	}, nil
 }
 
-func (api *DebugAPI) TraceTransaction(ctx context.Context, hash common.Hash) (*ExecutionResult, error) {
-	degugger := vm.NewStructLogger(&vm.LogConfig{
-		DisableMemory:     false,
-		DisableStack:      false,
-		DisableStorage:    false,
-		DisableReturnData: false,
-		Debug:             true,
-		Limit:             0,
-	})
+func (api *DebugAPI) TraceTransaction(ctx context.Context, hash common.Hash, config *eth.TraceConfig) (interface{}, error) {
+	var (
+		tracer vm.Tracer
+		err    error
+	)
+	switch {
+	case config != nil && config.Tracer != nil:
+		// Define a meaningful timeout of a single transaction trace
+		timeout := defaultTraceTimeout
+		if config.Timeout != nil {
+			if timeout, err = time.ParseDuration(*config.Timeout); err != nil {
+				return nil, err
+			}
+		}
+		// Constuct the JavaScript tracer to execute with
+		if tracer, err = tracers.New(*config.Tracer); err != nil {
+			return nil, err
+		}
+		// Handle timeouts and RPC cancellations
+		deadlineCtx, cancel := context.WithTimeout(ctx, timeout)
+		go func() {
+			<-deadlineCtx.Done()
+			tracer.(*tracers.Tracer).Stop(errors.New("execution timeout"))
+		}()
+		defer cancel()
 
-	evm, tx, err := api.prepareEvm(ctx, hash, degugger)
+	case config == nil:
+		tracer = vm.NewStructLogger(nil)
+
+	default:
+		tracer = vm.NewStructLogger(config.LogConfig)
+	}
+
+	evm, tx, err := api.prepareEvm(ctx, hash, tracer)
 	if err != nil {
 		return nil, err
 	}
 
 	result, err := core.ApplyMessage(evm, tx.Message, new(core.GasPool).AddGas(math.MaxUint64))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tracing failed: %v", err)
 	}
 
-	returnVal := fmt.Sprintf("%x", result.Return())
-	if len(result.Revert()) > 0 {
-		returnVal = fmt.Sprintf("%x", result.Revert())
-	}
+	// Depending on the tracer type, format and return the output
+	switch tracer := tracer.(type) {
+	case *vm.StructLogger:
+		// If the result contains a revert reason, return it.
+		returnVal := fmt.Sprintf("%x", result.Return())
+		if len(result.Revert()) > 0 {
+			returnVal = fmt.Sprintf("%x", result.Revert())
+		}
+		return &ExecutionResult{
+			Gas:         result.UsedGas,
+			Failed:      result.Failed(),
+			ReturnValue: returnVal,
+			StructLogs:  FormatLogs(tracer.StructLogs()),
+		}, nil
 
-	return &ExecutionResult{
-		Gas:         result.UsedGas,
-		Failed:      result.Failed(),
-		ReturnValue: returnVal,
-		StructLogs:  FormatLogs(degugger.StructLogs()),
-	}, nil
+	case *tracers.Tracer:
+		return tracer.GetResult()
+
+	default:
+		panic(fmt.Sprintf("bad tracer type %T", tracer))
+	}
 }

@@ -6,8 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/eth"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -330,41 +333,80 @@ func testTxTraceGraph(hash string) func(t *testing.T) {
 	}
 }
 
-func testTraceTransaction(hash string) func(t *testing.T) {
-	return func(t *testing.T) {
-		requestBody := fmt.Sprintf(
-			`{
+func callDebugTraceTransaction(hash string, url string, config *eth.TraceConfig) ([]byte, error) {
+	var requestBody string
+	requestTemplate := `{
 				"jsonrpc": "2.0",
 				"id": 0,
 				"method": "debug_traceTransaction",
-				"params": ["%s"]
-			}`,
-			hash,
-		)
+				"params": ["%s", %s]
+			}`
+	if config == nil {
+		requestBody = fmt.Sprintf(requestTemplate, hash, "{}")
+	} else {
+		paramStr := fmt.Sprintf("{\"disableStorage\": %s, \"disableMemory\": %s, \"disableStack\": %s}", strconv.FormatBool(config.DisableStorage),
+			strconv.FormatBool(config.DisableMemory), strconv.FormatBool(config.DisableStack))
+		requestBody = fmt.Sprintf(requestTemplate, hash, paramStr)
+	}
+
+	res, err := http.Post(url, "application/json", strings.NewReader(requestBody))
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	data, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+func testTraceTransaction(hash string) func(t *testing.T) {
+	return func(t *testing.T) {
 
 		t.Logf("call tracing-api debug_traceTransaction")
-		tracingApiRes, err := http.Post("http://127.0.0.1:8083", "application/json", strings.NewReader(requestBody))
-		if err != nil {
-			t.Fatalf("  error: %s", err)
-		}
-		defer tracingApiRes.Body.Close()
-
-		t.Logf("  read data")
-		rawTracingApiData, err := ioutil.ReadAll(tracingApiRes.Body)
+		rawTracingApiData, err := callDebugTraceTransaction(hash, "http://127.0.0.1:8083", nil)
 		if err != nil {
 			t.Fatalf("    error: %s", err)
 		}
 		t.Logf("    done")
 
 		t.Logf("call geth debug_traceTransaction")
-		gethRes, err := http.Post("http://127.0.0.1:8545", "application/json", strings.NewReader(requestBody))
+		rawGethData, err := callDebugTraceTransaction(hash, "http://127.0.0.1:8545", nil)
 		if err != nil {
-			t.Fatalf("  error: %s", err)
+			t.Fatalf("    error: %s", err)
 		}
-		defer gethRes.Body.Close()
+		t.Logf("    done")
 
-		t.Logf("  read data")
-		rawGethData, err := ioutil.ReadAll(gethRes.Body)
+		if !bytes.Equal(rawTracingApiData, rawGethData) {
+			t.Error("bad tracing api data")
+		}
+	}
+}
+
+func testTraceTransactionWithParams(hash string) func(t *testing.T) {
+	return func(t *testing.T) {
+
+		config := &eth.TraceConfig{
+			LogConfig: &vm.LogConfig{
+				DisableMemory:     true,
+				DisableStack:      true,
+				DisableStorage:    true,
+				DisableReturnData: true,
+			},
+		}
+
+		t.Logf("call tracing-api debug_traceTransaction")
+		rawTracingApiData, err := callDebugTraceTransaction(hash, "http://127.0.0.1:8083", config)
+		if err != nil {
+			t.Fatalf("    error: %s", err)
+		}
+		t.Logf("    done")
+
+		t.Logf("call geth debug_traceTransaction")
+		rawGethData, err := callDebugTraceTransaction(hash, "http://127.0.0.1:8545", config)
 		if err != nil {
 			t.Fatalf("    error: %s", err)
 		}
@@ -388,4 +430,5 @@ func TestMain(t *testing.T) {
 
 	t.Run("test TxTraceGraph", testTxTraceGraph(hash))
 	t.Run("test TraceTransaction", testTraceTransaction(hash))
+	t.Run("test TraceTransaction with params", testTraceTransactionWithParams(hash))
 }
