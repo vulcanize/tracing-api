@@ -2,15 +2,15 @@ package test
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth"
-	"io/ioutil"
+	"github.com/ethereum/go-ethereum/rpc"
 	"net/http"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -334,33 +334,30 @@ func testTxTraceGraph(hash string) func(t *testing.T) {
 }
 
 func callDebugTraceTransaction(hash string, url string, config *eth.TraceConfig) ([]byte, error) {
-	var requestBody string
-	requestTemplate := `{
-				"jsonrpc": "2.0",
-				"id": 0,
-				"method": "debug_traceTransaction",
-				"params": ["%s", %s]
-			}`
-	if config == nil {
-		requestBody = fmt.Sprintf(requestTemplate, hash, "{}")
-	} else {
-		paramStr := fmt.Sprintf("{\"disableStorage\": %s, \"disableMemory\": %s, \"disableStack\": %s}", strconv.FormatBool(config.DisableStorage),
-			strconv.FormatBool(config.DisableMemory), strconv.FormatBool(config.DisableStack))
-		requestBody = fmt.Sprintf(requestTemplate, hash, paramStr)
+	client, err := rpc.DialContext(context.Background(), url)
+	var result interface{}
+	configArg := map[string]interface{}{}
+
+	if config != nil {
+		if config.Tracer != nil {
+			configArg["tracer"] = config.Tracer
+		} else {
+			configArg["disableStorage"] = config.DisableStorage
+			configArg["disableMemory"] = config.DisableMemory
+			configArg["disableStack"] = config.DisableStack
+		}
 	}
 
-	res, err := http.Post(url, "application/json", strings.NewReader(requestBody))
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	data, err := ioutil.ReadAll(res.Body)
+	err = client.Call(&result, "debug_traceTransaction", hash, configArg)
 	if err != nil {
 		return nil, err
 	}
 
-	return data, nil
+	byteResult, err := json.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
+	return byteResult, err
 }
 
 func testTraceTransaction(hash string) func(t *testing.T) {
@@ -386,7 +383,7 @@ func testTraceTransaction(hash string) func(t *testing.T) {
 	}
 }
 
-func testTraceTransactionWithParams(hash string) func(t *testing.T) {
+func testTraceTransactionWithLogConfig(hash string) func(t *testing.T) {
 	return func(t *testing.T) {
 
 		config := &eth.TraceConfig{
@@ -396,6 +393,54 @@ func testTraceTransactionWithParams(hash string) func(t *testing.T) {
 				DisableStorage:    true,
 				DisableReturnData: true,
 			},
+		}
+
+		t.Logf("call tracing-api debug_traceTransaction")
+		rawTracingApiData, err := callDebugTraceTransaction(hash, "http://127.0.0.1:8083", config)
+		if err != nil {
+			t.Fatalf("    error: %s", err)
+		}
+		t.Logf("    done")
+
+		t.Logf("call geth debug_traceTransaction")
+		rawGethData, err := callDebugTraceTransaction(hash, "http://127.0.0.1:8545", config)
+		if err != nil {
+			t.Fatalf("    error: %s", err)
+		}
+		t.Logf("    done")
+
+		if !bytes.Equal(rawTracingApiData, rawGethData) {
+			t.Error("bad tracing api data")
+		}
+	}
+}
+
+func testTraceTransactionWithTracer(hash string) func(t *testing.T) {
+	return func(t *testing.T) {
+
+		tracer := `{
+			data: [], 
+			fault: function(log) {}, 
+			step: function(log) { 
+				var op = log.op.toString();
+				if(op == 'CALL') {
+					var off = (op == 'DELEGATECALL' || op == 'STATICCALL' ? 0 : 1);
+
+					var inOff = log.stack.peek(2 + off).valueOf();
+					var inEnd = inOff + log.stack.peek(3 + off).valueOf();
+
+					this.data.push({
+						to: toHex(toAddress(log.stack.peek(1).toString(16))),
+						input: toHex(log.memory.slice(inOff, inEnd)),
+					}); 
+				}
+					
+			}, 
+			result: function() { return this.data; }
+		}`
+
+		config := &eth.TraceConfig{
+			Tracer: &tracer,
 		}
 
 		t.Logf("call tracing-api debug_traceTransaction")
@@ -430,5 +475,6 @@ func TestMain(t *testing.T) {
 
 	t.Run("test TxTraceGraph", testTxTraceGraph(hash))
 	t.Run("test TraceTransaction", testTraceTransaction(hash))
-	t.Run("test TraceTransaction with params", testTraceTransactionWithParams(hash))
+	t.Run("test TraceTransaction with params", testTraceTransactionWithLogConfig(hash))
+	t.Run("test TraceTransaction with tracer", testTraceTransactionWithTracer(hash))
 }
