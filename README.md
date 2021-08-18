@@ -27,6 +27,19 @@ The currently supported standard JSON-RPC endpoints are:
      * `hash` - transaction hash to trace
         
     Output: empty
+    
+* `debug_traceTransaction` - debugging method will attempt to run the transaction in the exact same manner as it was executed on the network. 
+     It will replay any transaction that may have been executed prior to this one before it will finally attempt to execute the transaction that corresponds to the given hash.
+           
+     This method fully compatiable with geth `debug_traceTransaction`              
+     
+     In addition to the hash of the transaction you may give it a secondary optional argument, which specifies the options for this specific call. The possible options are:
+     
+     * disableStorage: BOOL. Setting this to true will disable storage capture (default = false).
+     * disableMemory: BOOL. Setting this to true will disable memory capture (default = false).
+     * disableStack: BOOL. Setting this to true will disable stack capture (default = false).
+     * tracer: STRING. Setting this will enable JavaScript-based transaction tracing, described below. If set, the previous four arguments will be ignored.
+     * timeout: STRING. Overrides the default timeout of 5 seconds for JavaScript-based tracing calls
 
 ## Application Diagram
 
