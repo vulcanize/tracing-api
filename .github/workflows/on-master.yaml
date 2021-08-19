@@ -22,4 +22,31 @@ jobs:
         run: echo ${{ secrets.GITHUB_TOKEN }} | docker login https://docker.pkg.github.com -u vulcanize --password-stdin
       - name: Docker Push
         run: docker push docker.pkg.github.com/vulcanize/tracing-api/tracing-api:${{steps.vars.outputs.sha}}
-
+  test:
+    name: Run integration tests
+    env:
+      GOPATH: /tmp/go
+    strategy:
+      matrix:
+        go-version: [1.14.x]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Create GOPATH
+        run: mkdir -p /tmp/go
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - uses: actions/checkout@v2
+      - name: Run services
+        run: cd test/enviroment/local && docker-compose pull && docker-compose up -d
+      - name: Checking running containers
+        run: |
+          sleep 10 && \
+          cd test/enviroment/local && \
+          docker-compose ps -a
+      - name: Test
+        run: |
+          cd test && \
+          go test -v .
